@@ -14,6 +14,16 @@ type ClaudeConfig = Record<string, unknown> & {
   >;
 };
 
+export async function readClaudeConfig(filePath = getClaudeConfigPath()): Promise<ClaudeConfig> {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+
+  const rawContent = await fs.promises.readFile(filePath, "utf8");
+
+  return JSON.parse(rawContent) as ClaudeConfig;
+}
+
 export function renderClaudeConfig(existingConfig: ClaudeConfig, servers: ResolvedServer[]): ClaudeConfig {
   return {
     ...existingConfig,
@@ -31,9 +41,7 @@ export function renderClaudeConfig(existingConfig: ClaudeConfig, servers: Resolv
 }
 
 export async function writeClaudeConfig(servers: ResolvedServer[], filePath = getClaudeConfigPath()): Promise<string | null> {
-  const existingConfig = fs.existsSync(filePath)
-    ? (JSON.parse(await fs.promises.readFile(filePath, "utf8")) as ClaudeConfig)
-    : {};
+  const existingConfig = await readClaudeConfig(filePath);
   const nextConfig = renderClaudeConfig(existingConfig, servers);
 
   await ensureParentDir(filePath);
