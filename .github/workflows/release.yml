@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   publish:
@@ -82,9 +83,7 @@ jobs:
 
       - name: Publish to npm
         if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
       - name: Create and push tag
         if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'

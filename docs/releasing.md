@@ -2,9 +2,15 @@
 
 This repository is prepared to publish `@mokivan/mcpmatrix@1.0.0`. Publication happens automatically from GitHub Actions after merges to `master`.
 
-## Required secret
+## Trusted Publisher
 
-- `NPM_TOKEN` with permission to publish the `@mokivan/mcpmatrix` package
+Publishing uses npm Trusted Publisher with GitHub Actions OIDC.
+
+Required configuration:
+
+- npm package linked to the `mokivan/mcpmatrix` repository
+- workflow file: `release.yml`
+- GitHub workflow permission `id-token: write`
 
 ## Runtime baseline
 
@@ -36,7 +42,7 @@ On push to `master`, the release workflow:
 6. runs `npm test`
 7. runs `npm run test:smoke`
 8. runs `npm pack --dry-run`
-9. publishes to npm as a public package
+9. publishes to npm as a public package using Trusted Publisher
 10. creates tag `v<version>`
 11. creates a GitHub Release with the matching support statement for that version
 
