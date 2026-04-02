@@ -1,6 +1,6 @@
 # Releasing `@mokivan/mcpmatrix`
 
-`@mokivan/mcpmatrix@1.0.0` is the current public npm release. Ongoing releases continue from GitHub Actions after merges to `master`.
+This repository is prepared to publish `@mokivan/mcpmatrix@1.0.0`. Publication happens automatically from GitHub Actions after merges to `master`.
 
 ## Required secret
 
