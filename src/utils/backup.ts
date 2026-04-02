@@ -10,8 +10,7 @@ export async function createBackupIfExists(filePath: string): Promise<string | n
     return null;
   }
 
-  const parsedPath = path.parse(filePath);
-  const backupPath = path.join(parsedPath.dir, `${parsedPath.name}.bak${parsedPath.ext}`);
+  const backupPath = `${filePath}.bak`;
 
   await fs.promises.copyFile(filePath, backupPath);
 
