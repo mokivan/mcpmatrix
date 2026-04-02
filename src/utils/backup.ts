@@ -17,6 +17,24 @@ export async function createBackupIfExists(filePath: string): Promise<string | n
   return backupPath;
 }
 
+export async function removeFileIfExists(filePath: string): Promise<void> {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+
+  await fs.promises.rm(filePath, { force: true });
+}
+
+export async function restoreFromBackupOrRemove(filePath: string, backupPath: string | null): Promise<void> {
+  if (backupPath) {
+    await ensureParentDir(filePath);
+    await fs.promises.copyFile(backupPath, filePath);
+    return;
+  }
+
+  await removeFileIfExists(filePath);
+}
+
 export async function writeFileAtomic(filePath: string, content: string): Promise<void> {
   await ensureParentDir(filePath);
 

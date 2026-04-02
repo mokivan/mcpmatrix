@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.1.0
+
+Hardening release for `@mokivan/mcpmatrix`.
+
+Included in `1.1.0`:
+
+- package contract clarified as CLI-only
+- `exports` locked down to avoid unsupported internal imports
+- package version sourced from `package.json` instead of hardcoded copies
+- transactional `apply` with rollback across Codex, Claude, and Gemini targets
+- stronger backup and restore helpers for failed applies
+- explicit `typecheck` gate in local scripts and CI
+- tarball verification script for publish hygiene
+- GitHub release notes generated from `CHANGELOG.md`
+- updated README and release docs covering compatibility, rollback, and support boundaries
+
+Compatibility notes:
+
+- documented CLI commands remain the supported public interface
+- importing package internals is unsupported and may break without notice
+
 ## 1.0.0
 
 First stable feature-complete release of `@mokivan/mcpmatrix`.

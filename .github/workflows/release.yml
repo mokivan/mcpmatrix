@@ -69,6 +69,10 @@ jobs:
         if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
         run: npm run build
 
+      - name: Typecheck
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        run: npm run typecheck
+
       - name: Test
         if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
         run: npm test
@@ -79,7 +83,7 @@ jobs:
 
       - name: Validate publish tarball
         if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
-        run: npm pack --dry-run
+        run: npm run pack:check
 
       - name: Publish to npm
         if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
@@ -96,19 +100,8 @@ jobs:
 
       - name: Create release notes
         if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
-        shell: bash
         run: |
-          cat > release-notes.md <<'EOF'
-          `@mokivan/mcpmatrix@${{ steps.package.outputs.version }}` supports:
-          - Codex CLI
-          - Claude Code CLI
-          - Gemini CLI
-          - config import
-          - validate command
-
-          Runtime requirement:
-          - Node.js 20 or newer
-          EOF
+          node scripts/release-notes.mjs "${{ steps.package.outputs.version }}" release-notes.md
 
       - name: Create GitHub Release
         if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'

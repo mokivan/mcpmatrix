@@ -14,6 +14,7 @@ async function runCli(args, env) {
 }
 
 async function main() {
+  const packageJson = JSON.parse(await fs.readFile(path.join(process.cwd(), "package.json"), "utf8"));
   const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "mcpmatrix-smoke-"));
 
   try {
@@ -24,7 +25,7 @@ async function main() {
     };
 
     const { stdout: versionOutput } = await runCli(["--version"], env);
-    if (versionOutput.trim() !== "1.0.0") {
+    if (versionOutput.trim() !== packageJson.version) {
       throw new Error(`Unexpected CLI version: ${versionOutput.trim()}`);
     }
 

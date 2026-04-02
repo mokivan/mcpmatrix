@@ -15,7 +15,9 @@ function estimateLineDiff(beforeContent: string, afterContent: string): number {
 
 export async function runPlanCommand(options?: { repo?: string }): Promise<void> {
   const config = await loadConfig();
-  const repoDetection = detectRepoPath({ repoFlag: options?.repo });
+  const repoDetection = options?.repo
+    ? detectRepoPath({ repoFlag: options.repo })
+    : detectRepoPath();
   const resolution = resolveServers(config, repoDetection.repoPath);
 
   for (const warning of resolution.warnings) {

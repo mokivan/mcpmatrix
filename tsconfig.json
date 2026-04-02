@@ -5,7 +5,12 @@
     "rootDir": "src",
     "outDir": "dist",
     "strict": true,
-    "esModuleInterop": true
+    "declaration": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "vitest.config.ts"]

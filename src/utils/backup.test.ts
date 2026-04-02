@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createBackupIfExists, writeFileAtomic } from "./backup";
+import { createBackupIfExists, restoreFromBackupOrRemove, writeFileAtomic } from "./backup";
 
 const tempPaths: string[] = [];
 
@@ -50,5 +50,26 @@ describe("createBackupIfExists", () => {
     expect(
       fs.readdirSync(path.dirname(configPath)).some((entry) => entry.endsWith(".tmp")),
     ).toBe(false);
+  });
+
+  it("restores a file from backup when rollback is needed", async () => {
+    const configPath = await createTempFile("config.toml", "model = \"gpt-5\"\n");
+    const backupPath = await createBackupIfExists(configPath);
+
+    await writeFileAtomic(configPath, "model = \"gpt-5.4\"\n");
+    await restoreFromBackupOrRemove(configPath, backupPath);
+
+    expect(fs.readFileSync(configPath, "utf8")).toBe("model = \"gpt-5\"\n");
+  });
+
+  it("removes a newly created file when no backup exists", async () => {
+    const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mcpmatrix-backup-"));
+    tempPaths.push(tempDir);
+    const filePath = path.join(tempDir, "generated.json");
+
+    await writeFileAtomic(filePath, "{\n  \"mcpServers\": {}\n}\n");
+    await restoreFromBackupOrRemove(filePath, null);
+
+    expect(fs.existsSync(filePath)).toBe(false);
   });
 });

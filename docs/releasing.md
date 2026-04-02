@@ -1,6 +1,6 @@
 # Releasing `@mokivan/mcpmatrix`
 
-This repository is prepared to publish `@mokivan/mcpmatrix@1.0.0`. Publication happens automatically from GitHub Actions after merges to `master`.
+Publication happens automatically from GitHub Actions after merges to `master`.
 
 ## Trusted Publisher
 
@@ -39,12 +39,13 @@ On push to `master`, the release workflow:
 3. skips if that version already exists on npm
 4. runs `npm ci`
 5. runs `npm run build`
-6. runs `npm test`
-7. runs `npm run test:smoke`
-8. runs `npm pack --dry-run`
-9. publishes to npm as a public package using Trusted Publisher
-10. creates tag `v<version>`
-11. creates a GitHub Release with the matching support statement for that version
+6. runs `npm run typecheck`
+7. runs `npm test`
+8. runs `npm run test:smoke`
+9. runs `npm run pack:check`
+10. publishes to npm as a public package using Trusted Publisher
+11. creates tag `v<version>`
+12. creates a GitHub Release from the exact `CHANGELOG.md` section matching `package.json.version`
 
 ## Post-release checks
 
@@ -62,5 +63,6 @@ Also confirm:
 
 - npm shows the expected README and metadata
 - published package contains only runtime artifacts
+- package contract remains CLI-only (`mcpmatrix`, `mmx`, documented flags)
 - docs match the clients and commands actually released in that version
 - `CHANGELOG.md` reflects the released scope

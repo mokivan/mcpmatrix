@@ -1,12 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  readCodexConfig: vi.fn(),
-  writeCodexConfig: vi.fn(),
-  readClaudeConfig: vi.fn(),
-  writeClaudeConfig: vi.fn(),
-  readGeminiConfig: vi.fn(),
-  writeGeminiConfig: vi.fn(),
+  applyResolvedServers: vi.fn(),
   loadConfig: vi.fn(),
   detectRepoPath: vi.fn(),
   resolveServers: vi.fn(),
@@ -14,19 +9,8 @@ const mocks = vi.hoisted(() => ({
   logWarn: vi.fn(),
 }));
 
-vi.mock("../../adapters/codex/writer", () => ({
-  readCodexConfig: mocks.readCodexConfig,
-  writeCodexConfig: mocks.writeCodexConfig,
-}));
-
-vi.mock("../../adapters/claude/writer", () => ({
-  readClaudeConfig: mocks.readClaudeConfig,
-  writeClaudeConfig: mocks.writeClaudeConfig,
-}));
-
-vi.mock("../../adapters/gemini/writer", () => ({
-  readGeminiConfig: mocks.readGeminiConfig,
-  writeGeminiConfig: mocks.writeGeminiConfig,
+vi.mock("../../core/apply", () => ({
+  applyResolvedServers: mocks.applyResolvedServers,
 }));
 
 vi.mock("../../core/config-loader", () => ({
@@ -51,8 +35,16 @@ import { runApplyCommand } from "./apply";
 describe("runApplyCommand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.readCodexConfig.mockResolvedValue("");
-    mocks.readGeminiConfig.mockResolvedValue({});
+    mocks.applyResolvedServers.mockResolvedValue({
+      rollbackPerformed: false,
+      targets: [
+        {
+          client: "codex",
+          filePath: "/tmp/codex.toml",
+          backupPath: "/tmp/codex.toml.bak",
+        },
+      ],
+    });
     mocks.loadConfig.mockResolvedValue({
       servers: {
         github: {
@@ -88,12 +80,9 @@ describe("runApplyCommand", () => {
   });
 
   it("fails before mutating Codex when Claude config is invalid", async () => {
-    mocks.readClaudeConfig.mockRejectedValue(new SyntaxError("Unexpected token"));
+    mocks.applyResolvedServers.mockRejectedValue(new SyntaxError("Unexpected token"));
 
     await expect(runApplyCommand()).rejects.toThrow("Unexpected token");
-    expect(mocks.readCodexConfig).toHaveBeenCalled();
-    expect(mocks.writeCodexConfig).not.toHaveBeenCalled();
-    expect(mocks.writeClaudeConfig).not.toHaveBeenCalled();
-    expect(mocks.writeGeminiConfig).not.toHaveBeenCalled();
+    expect(mocks.applyResolvedServers).toHaveBeenCalled();
   });
 });

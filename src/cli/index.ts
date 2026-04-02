@@ -6,11 +6,12 @@ import { runInitCommand } from "./commands/init";
 import { runPlanCommand } from "./commands/plan";
 import { runValidateCommand } from "./commands/validate";
 import { logError } from "../utils/logger";
+import { getPackageVersion } from "../utils/package-metadata";
 
 async function main(): Promise<void> {
   const program = new Command();
 
-  program.name("mcpmatrix").description("Centralized MCP configuration manager").version("1.0.0");
+  program.name("mcpmatrix").description("Centralized MCP configuration manager").version(getPackageVersion());
 
   program.command("init").description("Create the initial ~/.mcpmatrix/config.yml file").action(async () => {
     await runInitCommand();

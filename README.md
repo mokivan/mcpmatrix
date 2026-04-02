@@ -2,8 +2,6 @@
 
 Define MCP servers once and generate client configs from a single canonical configuration.
 
-Current package version in source: `@mokivan/mcpmatrix@1.0.0`
-
 This version supports:
 
 - Codex CLI
@@ -28,6 +26,11 @@ Available binaries:
 Minimum Node.js version:
 
 - `20`
+
+Package contract:
+
+- supported public interface: `mcpmatrix`, `mmx`, and documented CLI flags
+- unsupported: programmatic imports from package internals or `dist/*`
 
 ## Quick Start
 
@@ -148,12 +151,19 @@ Write behavior:
 - Gemini updates only the `mcpServers` section inside `settings.json`
 - existing content outside those managed areas is preserved
 - existing files are backed up before overwrite
+- `apply` is transactional across supported clients: either all targets are updated or the previous state is restored
 
 Backup files:
 
 - `~/.codex/config.toml.bak`
 - `~/.claude.json.bak`
 - `~/.gemini/settings.json.bak`
+
+Rollback behavior:
+
+- if any target write fails, `mcpmatrix apply` exits non-zero
+- mcpmatrix restores all supported client files to their pre-apply state
+- a failed apply should never leave a mixed client state behind
 
 ## Configuration
 
@@ -214,13 +224,28 @@ Run checks:
 
 ```bash
 npm run lint
+npm run typecheck
 npm test
 npm run test:smoke
+npm run pack:check
 ```
 
 ## Release
 
 The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions after merges to `master`, guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
+
+## Compatibility
+
+- supported runtime: Node.js `20+`
+- supported clients: Codex CLI, Claude Code CLI, Gemini CLI
+- semver applies to the documented CLI only
+- importing package internals is outside the support contract and may break without notice
+
+## Troubleshooting
+
+- `validate` failing on a command usually means the executable is not available in local `PATH` or is not an executable file path
+- `import` fails when `~/.mcpmatrix/config.yml` already exists or when the same server name has conflicting definitions across clients
+- `apply` failures should restore the previous client state; inspect the reported target path and backup files if the error persists
 
 ## Documentation Guard
 

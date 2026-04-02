@@ -58,3 +58,14 @@ export interface ImportedConfigResult {
   config: McpMatrixConfig;
   importedSources: ImportedConfigSource[];
 }
+
+export interface ApplyTargetResult {
+  client: SupportedClient;
+  filePath: string;
+  backupPath: string | null;
+}
+
+export interface ApplyResult {
+  targets: ApplyTargetResult[];
+  rollbackPerformed: boolean;
+}
