@@ -30,9 +30,27 @@ describe("config-validator", () => {
   });
 
   it("finds commands by absolute path", async () => {
-    const scriptPath = await createTempCommand("mcpmatrix-test-command");
+    const scriptPath = await createTempCommand(
+      process.platform === "win32" ? "mcpmatrix-test-command.cmd" : "mcpmatrix-test-command",
+    );
+
+    if (process.platform !== "win32") {
+      await fs.promises.chmod(scriptPath, 0o755);
+    }
 
     expect(commandExists(scriptPath)).toBe(true);
+  });
+
+  it("rejects path-based commands that are not executable", async () => {
+    const scriptPath = await createTempCommand(
+      process.platform === "win32" ? "mcpmatrix-test-command.txt" : "mcpmatrix-test-command",
+    );
+
+    if (process.platform !== "win32") {
+      await fs.promises.chmod(scriptPath, 0o644);
+    }
+
+    expect(commandExists(scriptPath)).toBe(false);
   });
 
   it("rejects missing commands during validation", () => {
