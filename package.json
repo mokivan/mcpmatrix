@@ -1,0 +1,57 @@
+{
+  "name": "@mokivan/mcpmatrix",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Define MCP servers once and generate configs for Codex and Claude Code from a canonical MCP configuration",
+  "keywords": [
+    "mcp",
+    "codex",
+    "claude",
+    "cli",
+    "config"
+  ],
+  "homepage": "https://github.com/mokivan/mcpmatrix#readme",
+  "bugs": {
+    "url": "https://github.com/mokivan/mcpmatrix/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mokivan/mcpmatrix.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "mcpmatrix": "dist/cli/index.js",
+    "mmx": "dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli/index.ts",
+    "lint": "eslint \"src/**/*.ts\" --ignore-pattern \"**/*.test.ts\"",
+    "test": "vitest run",
+    "test:smoke": "node scripts/smoke.mjs",
+    "prepublishOnly": "npm run build && npm run lint && npm test && npm run test:smoke"
+  },
+  "dependencies": {
+    "yaml": "^2.3.0",
+    "commander": "^11.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.24.0",
+    "vitest": "^3.2.4",
+    "eslint": "^9.24.0",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.29.1",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0"
+  }
+}

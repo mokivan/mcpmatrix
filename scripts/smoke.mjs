@@ -1,0 +1,59 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
+async function runCli(args, env) {
+  return execFileAsync(process.execPath, [path.join(process.cwd(), "dist", "cli", "index.js"), ...args], {
+    cwd: process.cwd(),
+    env,
+  });
+}
+
+async function main() {
+  const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "mcpmatrix-smoke-"));
+
+  try {
+    const env = {
+      ...process.env,
+      HOME: tempHome,
+      USERPROFILE: tempHome,
+    };
+
+    await runCli(["init"], env);
+
+    const configPath = path.join(tempHome, ".mcpmatrix", "config.yml");
+    const repoPath = path.join(tempHome, "repo");
+    await fs.mkdir(path.join(repoPath, ".git"), { recursive: true });
+
+    await fs.writeFile(
+      configPath,
+      `servers:
+  github:
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-github"]
+scopes:
+  global:
+    enable:
+      - github
+`,
+      "utf8",
+    );
+
+    await runCli(["plan", "--repo", repoPath], env);
+    await runCli(["apply", "--repo", repoPath], env);
+
+    await fs.access(path.join(tempHome, ".codex", "config.toml"));
+    await fs.access(path.join(tempHome, ".claude.json"));
+  } finally {
+    await fs.rm(tempHome, { recursive: true, force: true });
+  }
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});
