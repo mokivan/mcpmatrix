@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  readCodexConfig: vi.fn(),
   writeCodexConfig: vi.fn(),
   readClaudeConfig: vi.fn(),
   writeClaudeConfig: vi.fn(),
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../adapters/codex/writer", () => ({
+  readCodexConfig: mocks.readCodexConfig,
   writeCodexConfig: mocks.writeCodexConfig,
 }));
 
@@ -42,6 +44,7 @@ import { runApplyCommand } from "./apply";
 describe("runApplyCommand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.readCodexConfig.mockResolvedValue("");
     mocks.loadConfig.mockResolvedValue({
       servers: {
         github: {
@@ -80,6 +83,7 @@ describe("runApplyCommand", () => {
     mocks.readClaudeConfig.mockRejectedValue(new SyntaxError("Unexpected token"));
 
     await expect(runApplyCommand()).rejects.toThrow("Unexpected token");
+    expect(mocks.readCodexConfig).toHaveBeenCalled();
     expect(mocks.writeCodexConfig).not.toHaveBeenCalled();
     expect(mocks.writeClaudeConfig).not.toHaveBeenCalled();
   });

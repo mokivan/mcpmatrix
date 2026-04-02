@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Detect package.json changes
+        id: changed
+        shell: bash
+        run: |
+          if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -qx 'package.json'; then
+            echo "package_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "package_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read version metadata
+        id: package
+        if: steps.changed.outputs.package_changed == 'true'
+        shell: bash
+        run: |
+          node - <<'EOF'
+          const fs = require("fs");
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(pkg.version)) {
+            throw new Error(`Invalid semver version: ${pkg.version}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${pkg.version}\n`);
+          EOF
+
+      - name: Check published npm version
+        id: npm
+        if: steps.changed.outputs.package_changed == 'true'
+        shell: bash
+        run: |
+          if npm view "mcpmatrix@${{ steps.package.outputs.version }}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        run: npm ci
+
+      - name: Build
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        run: npm run build
+
+      - name: Test
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        run: npm test
+
+      - name: Smoke test
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        run: npm run test:smoke
+
+      - name: Validate publish tarball
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        run: npm pack --dry-run
+
+      - name: Publish to npm
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create and push tag
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.package.outputs.version }}"
+          git push origin "v${{ steps.package.outputs.version }}"
+
+      - name: Create release notes
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        shell: bash
+        run: |
+          cat > release-notes.md <<'EOF'
+          `mcpmatrix@${{ steps.package.outputs.version }}` supports:
+          - Codex CLI
+          - Claude Code CLI
+
+          This release does not include:
+          - Gemini CLI
+          - config import
+          - TUI or doctor commands
+          EOF
+
+      - name: Create GitHub Release
+        if: steps.changed.outputs.package_changed == 'true' && steps.npm.outputs.published == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.package.outputs.version }}
+          name: v${{ steps.package.outputs.version }}
+          body_path: release-notes.md

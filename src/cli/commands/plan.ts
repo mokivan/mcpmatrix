@@ -1,6 +1,5 @@
-import fs from "fs";
-import { renderCodexManagedSection } from "../../adapters/codex/writer";
-import { renderClaudeConfig } from "../../adapters/claude/writer";
+import { readClaudeConfig, renderClaudeConfig } from "../../adapters/claude/writer";
+import { readCodexConfig, renderCodexManagedSection } from "../../adapters/codex/writer";
 import { loadConfig } from "../../core/config-loader";
 import { detectRepoPath } from "../../core/repo-detector";
 import { resolveServers } from "../../core/resolver";
@@ -24,10 +23,11 @@ export async function runPlanCommand(options?: { repo?: string }): Promise<void>
 
   const codexPath = getCodexConfigPath();
   const claudePath = getClaudeConfigPath();
-  const codexExisting = fs.existsSync(codexPath) ? await fs.promises.readFile(codexPath, "utf8") : "";
+  const codexExisting = await readCodexConfig(codexPath);
   const codexNext = renderCodexManagedSection(resolution.servers);
-  const claudeExisting = fs.existsSync(claudePath) ? await fs.promises.readFile(claudePath, "utf8") : "{}\n";
-  const claudeNext = `${JSON.stringify(renderClaudeConfig(JSON.parse(claudeExisting), resolution.servers), null, 2)}\n`;
+  const claudeExistingConfig = await readClaudeConfig(claudePath);
+  const claudeExisting = JSON.stringify(claudeExistingConfig, null, 2);
+  const claudeNext = `${JSON.stringify(renderClaudeConfig(claudeExistingConfig, resolution.servers), null, 2)}\n`;
 
   logInfo(`Repo: ${resolution.repoPath}`);
   logInfo(`Detection: ${repoDetection.detectionMode}`);

@@ -1,6 +1,6 @@
 import fs from "fs";
 import { ResolvedServer } from "../../types";
-import { createBackupIfExists, ensureParentDir } from "../../utils/backup";
+import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getClaudeConfigPath } from "../../utils/paths";
 
 type ClaudeConfig = Record<string, unknown> & {
@@ -21,7 +21,12 @@ export async function readClaudeConfig(filePath = getClaudeConfigPath()): Promis
 
   const rawContent = await fs.promises.readFile(filePath, "utf8");
 
-  return JSON.parse(rawContent) as ClaudeConfig;
+  try {
+    return JSON.parse(rawContent) as ClaudeConfig;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid JSON in Claude config ${filePath}: ${message}`);
+  }
 }
 
 export function renderClaudeConfig(existingConfig: ClaudeConfig, servers: ResolvedServer[]): ClaudeConfig {
@@ -44,9 +49,8 @@ export async function writeClaudeConfig(servers: ResolvedServer[], filePath = ge
   const existingConfig = await readClaudeConfig(filePath);
   const nextConfig = renderClaudeConfig(existingConfig, servers);
 
-  await ensureParentDir(filePath);
   const backupPath = await createBackupIfExists(filePath);
-  await fs.promises.writeFile(filePath, `${JSON.stringify(nextConfig, null, 2)}\n`, "utf8");
+  await writeFileAtomic(filePath, `${JSON.stringify(nextConfig, null, 2)}\n`);
 
   return backupPath;
 }

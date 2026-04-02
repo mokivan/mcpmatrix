@@ -1,6 +1,6 @@
 import fs from "fs";
 import { ResolvedServer } from "../../types";
-import { createBackupIfExists, ensureParentDir } from "../../utils/backup";
+import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getCodexConfigPath } from "../../utils/paths";
 
 const START_MARKER = "# BEGIN MCPMATRIX MANAGED MCP SERVERS";
@@ -64,13 +64,20 @@ export function mergeCodexConfig(existingContent: string, servers: ResolvedServe
   return `${trimmed}\n\n${managedSection}`;
 }
 
+export async function readCodexConfig(filePath = getCodexConfigPath()): Promise<string> {
+  if (!fs.existsSync(filePath)) {
+    return "";
+  }
+
+  return fs.promises.readFile(filePath, "utf8");
+}
+
 export async function writeCodexConfig(servers: ResolvedServer[], filePath = getCodexConfigPath()): Promise<string | null> {
-  const existingContent = fs.existsSync(filePath) ? await fs.promises.readFile(filePath, "utf8") : "";
+  const existingContent = await readCodexConfig(filePath);
   const nextContent = mergeCodexConfig(existingContent, servers);
 
-  await ensureParentDir(filePath);
   const backupPath = await createBackupIfExists(filePath);
-  await fs.promises.writeFile(filePath, nextContent, "utf8");
+  await writeFileAtomic(filePath, nextContent);
 
   return backupPath;
 }

@@ -16,3 +16,25 @@ export async function createBackupIfExists(filePath: string): Promise<string | n
 
   return backupPath;
 }
+
+export async function writeFileAtomic(filePath: string, content: string): Promise<void> {
+  await ensureParentDir(filePath);
+
+  const tempPath = path.join(
+    path.dirname(filePath),
+    `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
+  );
+
+  await fs.promises.writeFile(tempPath, content, "utf8");
+
+  try {
+    if (process.platform === "win32" && fs.existsSync(filePath)) {
+      await fs.promises.rm(filePath, { force: true });
+    }
+
+    await fs.promises.rename(tempPath, filePath);
+  } catch (error) {
+    await fs.promises.rm(tempPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}

@@ -21,13 +21,22 @@ export function getClaudeConfigPath(): string {
   return path.join(getHomeDir(), ".claude.json");
 }
 
-export function normalizeRepoPath(inputPath: string): string {
-  const resolved = path.resolve(inputPath);
-  const normalized = path.normalize(resolved);
+function isWindowsStyleAbsolutePath(inputPath: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(inputPath) || /^\\\\/.test(inputPath);
+}
 
-  if (process.platform === "win32") {
-    return normalized.toLowerCase();
+function isPosixStyleAbsolutePath(inputPath: string): boolean {
+  return inputPath.startsWith("/");
+}
+
+export function normalizeRepoPath(inputPath: string): string {
+  if (isWindowsStyleAbsolutePath(inputPath)) {
+    return path.win32.normalize(inputPath).toLowerCase();
   }
 
-  return normalized;
+  if (isPosixStyleAbsolutePath(inputPath)) {
+    return path.posix.normalize(inputPath.replace(/\\/g, "/"));
+  }
+
+  return normalizeRepoPath(path.resolve(inputPath));
 }

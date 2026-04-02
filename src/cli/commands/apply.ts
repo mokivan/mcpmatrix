@@ -1,4 +1,4 @@
-import { writeCodexConfig } from "../../adapters/codex/writer";
+import { readCodexConfig, writeCodexConfig } from "../../adapters/codex/writer";
 import { readClaudeConfig, writeClaudeConfig } from "../../adapters/claude/writer";
 import { loadConfig } from "../../core/config-loader";
 import { detectRepoPath } from "../../core/repo-detector";
@@ -15,6 +15,7 @@ export async function runApplyCommand(options?: { repo?: string }): Promise<void
     logWarn(warning);
   }
 
+  await readCodexConfig();
   await readClaudeConfig();
   const codexBackup = await writeCodexConfig(resolution.servers);
   const claudeBackup = await writeClaudeConfig(resolution.servers);
