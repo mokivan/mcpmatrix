@@ -1,6 +1,9 @@
 # Releasing `@mokivan/mcpmatrix`
 
-Publication happens automatically from GitHub Actions after merges to `master`.
+Publication happens from GitHub Actions either:
+
+- automatically after merges to `master`
+- manually through the `Release` workflow in GitHub Actions
 
 ## Trusted Publisher
 
@@ -30,11 +33,18 @@ Before merging the hardening or release PR:
    - `mcpmatrix apply`
 4. Codex, Claude, and Gemini must recognize the generated MCP configs
 
-## Automatic publish flow
+## Publish flow
 
-On push to `master`, the release workflow:
+The release workflow can start from either:
 
-1. checks whether `package.json` changed in the pushed range
+- a push to `master`
+- a manual `workflow_dispatch` run from GitHub Actions
+
+When it runs, it:
+
+1. checks whether publishing should proceed:
+   - on push, only when `package.json` changed in the pushed range
+   - on manual run, always continues to version checks
 2. validates that `package.json.version` is a semver version
 3. skips if that version already exists on npm
 4. runs `npm ci`
@@ -66,3 +76,4 @@ Also confirm:
 - package contract remains CLI-only (`mcpmatrix`, `mmx`, documented flags)
 - docs match the clients and commands actually released in that version
 - `CHANGELOG.md` reflects the released scope
+- Trusted Publisher is configured for `mokivan/mcpmatrix` with workflow filename `release.yml`

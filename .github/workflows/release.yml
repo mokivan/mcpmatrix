@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -30,7 +31,9 @@ jobs:
         id: changed
         shell: bash
         run: |
-          if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -qx 'package.json'; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "package_changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -qx 'package.json'; then
             echo "package_changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "package_changed=false" >> "$GITHUB_OUTPUT"
