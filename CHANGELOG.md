@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Planned for the next public release from this branch:
+
+- Gemini CLI output via `mcpServers` in `~/.gemini/settings.json`
+- `import` command for Codex, Claude Code, and Gemini configs
+- `validate` command for YAML, env references, server references, and local command existence
+- stronger repo-path normalization coverage across Windows, Linux, and macOS
+- expanded integration and smoke coverage for the v1 command set
+
 ## 0.1.0
 
 Initial public release of `@mokivan/mcpmatrix`.
@@ -20,4 +30,5 @@ Not included in `0.1.0`:
 
 - Gemini CLI
 - config import
+- `validate` command
 - TUI or doctor commands

@@ -2,22 +2,28 @@
 
 Define MCP servers once and generate client configs from a single canonical configuration.
 
-Current stable release: `0.1.0`
+Current development phase: `v1`
 
-`@mokivan/mcpmatrix@0.1.0` officially supports:
+Current published npm release: `@mokivan/mcpmatrix@0.1.0`
 
-- Codex CLI
-- Claude Code CLI
+Implemented in the current source tree:
 
-`0.1.0` does not include:
+- Codex CLI support
+- Claude Code CLI support
+- Gemini CLI support
+- config import from existing client files
+- explicit config validation
+
+Published in `0.1.0`:
+
+- Codex CLI support
+- Claude Code CLI support
+
+Not yet published from this branch:
 
 - Gemini CLI support
-- import from existing client configs
-- TUI or diagnostics commands
-
-Next planned roadmap phase:
-
-- `v1`: Gemini CLI support, config import, stronger validation, npm distribution polish
+- config import
+- `validate` command
 
 ## Install
 
@@ -70,18 +76,53 @@ scopes:
       enable: []
 ```
 
-3. Preview and apply:
+3. Validate, preview, and apply:
 
 ```bash
+mcpmatrix validate
 mcpmatrix plan
 mcpmatrix apply
 ```
+
+## Import Existing Configs
+
+Import MCP servers from the supported client files into `~/.mcpmatrix/config.yml`:
+
+```bash
+mcpmatrix import
+```
+
+Detected sources:
+
+- Codex: `~/.codex/config.toml`
+- Claude Code: `~/.claude.json`
+- Gemini: `~/.gemini/settings.json`
+
+Import rules:
+
+- import fails if `~/.mcpmatrix/config.yml` already exists
+- imported servers become `servers`
+- imported server names are enabled in `scopes.global.enable`
+- conflicting definitions for the same server name cause import to fail
 
 ## Commands
 
 ### `mcpmatrix init`
 
 Creates the initial config file at `~/.mcpmatrix/config.yml`.
+
+### `mcpmatrix import`
+
+Imports existing MCP client configs into the canonical YAML file.
+
+### `mcpmatrix validate`
+
+Validates:
+
+- YAML syntax
+- env reference syntax
+- scope references to defined servers
+- server commands available in PATH or by executable path
 
 ### `mcpmatrix plan [--repo <path>]`
 
@@ -103,15 +144,17 @@ Repository detection order:
 
 Resolves the same server set and writes client configs.
 
-Client outputs in `0.1.0`:
+Client outputs in the current source tree:
 
 - Codex: `~/.codex/config.toml`
 - Claude Code: `~/.claude.json`
+- Gemini: `~/.gemini/settings.json`
 
 Write behavior:
 
 - Codex updates only a managed `mcpmatrix` block inside `config.toml`
 - Claude updates only the `mcpServers` section inside `.claude.json`
+- Gemini updates only the `mcpServers` section inside `settings.json`
 - existing content outside those managed areas is preserved
 - existing files are backed up before overwrite
 
@@ -119,13 +162,7 @@ Backup files:
 
 - `~/.codex/config.toml.bak`
 - `~/.claude.json.bak`
-
-Restore examples:
-
-```bash
-cp ~/.codex/config.toml.bak ~/.codex/config.toml
-cp ~/.claude.json.bak ~/.claude.json
-```
+- `~/.gemini/settings.json.bak`
 
 ## Configuration
 
@@ -135,7 +172,7 @@ Global config location:
 ~/.mcpmatrix/config.yml
 ```
 
-Public schema in `0.1.0`:
+Public schema:
 
 ```yaml
 servers:
@@ -166,6 +203,7 @@ Rules:
 - resolution order is `global -> tags -> repo`
 - duplicate server names are removed while preserving first appearance
 - env references must use `${env:VAR_NAME}` when interpolation syntax is used
+- repo matching uses normalized absolute paths across Windows, Linux, and macOS
 
 ## Development
 
@@ -181,19 +219,7 @@ Build:
 npm run build
 ```
 
-<<<<<<< HEAD
-## Documentation Guard
-
-When a roadmap phase is implemented or the supported client matrix changes, update this README in the same change.
-
-Minimum README updates for that case:
-
-- current project phase
-- supported clients
-- planned clients and deferred scope
-- user-facing commands or setup changes
-=======
-Run tests:
+Run checks:
 
 ```bash
 npm run lint
@@ -205,10 +231,6 @@ npm run test:smoke
 
 `0.1.0` is published as the public scoped package `@mokivan/mcpmatrix` from GitHub Actions after merges to `master`, guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
 
-Published package:
-
-- `@mokivan/mcpmatrix@0.1.0`
-
 ## Documentation Guard
 
 When a roadmap phase is implemented or the supported client matrix changes, update this README in the same change.
@@ -216,7 +238,7 @@ When a roadmap phase is implemented or the supported client matrix changes, upda
 Minimum README updates for that case:
 
 - supported clients
-- planned clients and deferred scope
+- published versus unreleased feature status
 - user-facing commands or setup changes
 - release and install instructions if package metadata changes
 
@@ -229,4 +251,3 @@ Implementation follows this order:
 3. code in [`src/`](/c:/Users/ivan_/repos/mcpmatrix/src)
 
 Canonical specs are the files prefixed with `spec-`.
->>>>>>> ffbd7f9037fa5fef0c249385242e3cdc59319dcb
