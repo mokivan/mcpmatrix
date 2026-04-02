@@ -178,6 +178,7 @@ npm run build
 Run tests:
 
 ```bash
+npm run lint
 npm test
 npm run test:smoke
 ```

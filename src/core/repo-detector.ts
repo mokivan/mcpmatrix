@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { RepoDetectionResult } from "../types";
+import type { RepoDetectionResult } from "../types";
 import { normalizeRepoPath } from "../utils/paths";
 
 function hasGitMarker(candidatePath: string): boolean {

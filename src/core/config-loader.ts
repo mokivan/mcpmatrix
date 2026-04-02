@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import YAML from "yaml";
-import { McpMatrixConfig, RepoScopeConfig, ServerDefinition, TagScopeConfig } from "../types";
+import type { McpMatrixConfig, RepoScopeConfig, ServerDefinition, TagScopeConfig } from "../types";
 import { writeFileAtomic } from "../utils/backup";
 import { getGlobalConfigPath } from "../utils/paths";
 
@@ -24,7 +24,7 @@ function parseStringArray(value: unknown, fieldName: string): string[] {
     throw new Error(`Invalid ${fieldName}: expected string[]`);
   }
 
-  return [...value];
+  return value as string[];
 }
 
 function parseEnvMap(value: unknown, fieldName: string): Record<string, string> {

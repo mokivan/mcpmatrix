@@ -1,5 +1,5 @@
 import fs from "fs";
-import { ResolvedServer } from "../../types";
+import type { ResolvedServer } from "../../types";
 import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getClaudeConfigPath } from "../../utils/paths";
 

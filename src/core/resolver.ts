@@ -1,4 +1,4 @@
-import { McpMatrixConfig, ResolutionResult, ResolvedServer } from "../types";
+import type { McpMatrixConfig, ResolutionResult, ResolvedServer } from "../types";
 import { normalizeRepoPath } from "../utils/paths";
 
 function dedupeServerNames(serverNames: string[]): string[] {
