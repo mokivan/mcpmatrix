@@ -1,5 +1,5 @@
 {
-  "name": "mcpmatrix",
+  "name": "@mokivan/mcpmatrix",
   "version": "0.1.0",
   "license": "MIT",
   "description": "Define MCP servers once and generate configs for Codex and Claude Code from a canonical MCP configuration",

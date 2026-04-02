@@ -1,10 +1,10 @@
-# Releasing `mcpmatrix`
+# Releasing `@mokivan/mcpmatrix`
 
-`mcpmatrix@0.1.0` is published to the public npm registry from GitHub Actions after merges to `master`.
+`@mokivan/mcpmatrix@0.1.0` is published to the public npm registry from GitHub Actions after merges to `master`.
 
 ## Required secret
 
-- `NPM_TOKEN` with permission to publish the `mcpmatrix` package
+- `NPM_TOKEN` with permission to publish the `@mokivan/mcpmatrix` package
 
 ## Merge gate for the release PR
 
@@ -39,7 +39,7 @@ On push to `master`, the release workflow:
 After publish:
 
 ```bash
-npm install -g mcpmatrix
+npm install -g @mokivan/mcpmatrix
 mcpmatrix --help
 mcpmatrix init
 ```

@@ -2,7 +2,7 @@
 
 Define MCP servers once and generate client configs from a single canonical configuration.
 
-`mcpmatrix@0.1.0` officially supports:
+`@mokivan/mcpmatrix@0.1.0` officially supports:
 
 - Codex CLI
 - Claude Code CLI
@@ -18,7 +18,7 @@ Define MCP servers once and generate client configs from a single canonical conf
 Global install from npm:
 
 ```bash
-npm install -g mcpmatrix
+npm install -g @mokivan/mcpmatrix
 ```
 
 Available binaries:
@@ -185,7 +185,7 @@ npm run test:smoke
 
 ## Release
 
-`0.1.0` is published as a public npm package from GitHub Actions after merges to `master`, guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
+`0.1.0` is published as the public scoped package `@mokivan/mcpmatrix` from GitHub Actions after merges to `master`, guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
 
 ## Source of Truth
 
