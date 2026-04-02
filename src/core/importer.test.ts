@@ -111,6 +111,62 @@ env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
     expect(imported.config.scopes?.global?.enable).toEqual(["github", "browser"]);
   });
 
+  it("merges identical imported env maps regardless of key order", async () => {
+    const homeDir = await createTempHome();
+
+    await fs.promises.writeFile(
+      path.join(homeDir, ".claude.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            github: {
+              command: "npx",
+              args: ["-y", "@modelcontextprotocol/server-github"],
+              env: {
+                GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+                EXTRA_TOKEN: "${env:EXTRA_TOKEN}",
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    await fs.promises.mkdir(path.join(homeDir, ".gemini"), { recursive: true });
+    await fs.promises.writeFile(
+      path.join(homeDir, ".gemini", "settings.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            github: {
+              command: "npx",
+              args: ["-y", "@modelcontextprotocol/server-github"],
+              env: {
+                EXTRA_TOKEN: "${env:EXTRA_TOKEN}",
+                GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const imported = await importExistingConfigs();
+
+    expect(imported.importedSources.map((source) => source.client)).toEqual(["claude", "gemini"]);
+    expect(Object.keys(imported.config.servers)).toEqual(["github"]);
+    expect(imported.config.servers.github.env).toEqual({
+      GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+      EXTRA_TOKEN: "${env:EXTRA_TOKEN}",
+    });
+  });
+
   it("fails when the same server name maps to different definitions", async () => {
     const homeDir = await createTempHome();
 

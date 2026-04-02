@@ -27,10 +27,12 @@ type CodexTomlServer = {
 };
 
 function normalizeServerDefinition(server: ServerDefinition): string {
+  const env = Object.fromEntries(Object.entries(server.env ?? {}).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey)));
+
   return JSON.stringify({
     command: server.command,
     args: server.args ?? [],
-    env: server.env ?? {},
+    env,
   });
 }
 
