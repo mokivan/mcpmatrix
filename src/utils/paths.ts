@@ -21,6 +21,10 @@ export function getClaudeConfigPath(): string {
   return path.join(getHomeDir(), ".claude.json");
 }
 
+export function getGeminiConfigPath(): string {
+  return path.join(getHomeDir(), ".gemini", "settings.json");
+}
+
 function isWindowsStyleAbsolutePath(inputPath: string): boolean {
   return /^[a-zA-Z]:[\\/]/.test(inputPath) || /^\\\\/.test(inputPath);
 }

@@ -1,0 +1,19 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`gemini writer > renders the gemini config snapshot 1`] = `
+"{
+  "theme": "light",
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "\${env:GITHUB_TOKEN}"
+      }
+    }
+  }
+}"
+`;

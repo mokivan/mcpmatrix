@@ -99,6 +99,7 @@ scopes:
     const repoDir = await createRepoDir();
     const codexPath = path.join(homeDir, ".codex", "config.toml");
     const claudePath = path.join(homeDir, ".claude.json");
+    const geminiPath = path.join(homeDir, ".gemini", "settings.json");
 
     await writeUserConfig(
       homeDir,
@@ -120,8 +121,10 @@ scopes:
     );
 
     await fs.promises.mkdir(path.dirname(codexPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(geminiPath), { recursive: true });
     await fs.promises.writeFile(codexPath, 'model = "gpt-5"\n', "utf8");
     await fs.promises.writeFile(claudePath, '{\n  "theme": "dark"\n}\n', "utf8");
+    await fs.promises.writeFile(geminiPath, '{\n  "theme": "light"\n}\n', "utf8");
 
     await runApplyCommand({ repo: repoDir });
 
@@ -130,20 +133,28 @@ scopes:
       theme: string;
       mcpServers: Record<string, unknown>;
     };
+    const geminiContent = JSON.parse(await fs.promises.readFile(geminiPath, "utf8")) as {
+      theme: string;
+      mcpServers: Record<string, unknown>;
+    };
 
     expect(codexContent).toContain('model = "gpt-5"');
     expect(codexContent).toContain("[[mcp_servers]]");
     expect(claudeContent.theme).toBe("dark");
     expect(Object.keys(claudeContent.mcpServers)).toEqual(["github"]);
+    expect(geminiContent.theme).toBe("light");
+    expect(Object.keys(geminiContent.mcpServers)).toEqual(["github"]);
     expect(fs.existsSync(`${codexPath}.bak`)).toBe(true);
     expect(fs.existsSync(`${claudePath}.bak`)).toBe(true);
+    expect(fs.existsSync(`${geminiPath}.bak`)).toBe(true);
   });
 
-  it("fails without mutating configs when Claude JSON is invalid", async () => {
+  it("fails without mutating configs when Gemini JSON is invalid", async () => {
     const homeDir = await createTempHome();
     const repoDir = await createRepoDir();
     const codexPath = path.join(homeDir, ".codex", "config.toml");
     const claudePath = path.join(homeDir, ".claude.json");
+    const geminiPath = path.join(homeDir, ".gemini", "settings.json");
     const originalCodex = 'model = "gpt-5"\n';
 
     await writeUserConfig(
@@ -159,11 +170,63 @@ scopes:
     );
 
     await fs.promises.mkdir(path.dirname(codexPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(geminiPath), { recursive: true });
     await fs.promises.writeFile(codexPath, originalCodex, "utf8");
-    await fs.promises.writeFile(claudePath, "{ invalid json\n", "utf8");
+    await fs.promises.writeFile(claudePath, '{\n  "theme": "dark"\n}\n', "utf8");
+    await fs.promises.writeFile(geminiPath, "{ invalid json\n", "utf8");
 
-    await expect(runApplyCommand({ repo: repoDir })).rejects.toThrow("Invalid JSON in Claude config");
+    await expect(runApplyCommand({ repo: repoDir })).rejects.toThrow("Invalid JSON in Gemini config");
     expect(await fs.promises.readFile(codexPath, "utf8")).toBe(originalCodex);
     expect(fs.existsSync(`${codexPath}.bak`)).toBe(false);
+  });
+
+  it("imports existing configs into the canonical YAML", async () => {
+    const homeDir = await createTempHome();
+    const claudePath = path.join(homeDir, ".claude.json");
+
+    await fs.promises.writeFile(
+      claudePath,
+      JSON.stringify(
+        {
+          mcpServers: {
+            github: {
+              command: "npx",
+              args: ["-y", "@modelcontextprotocol/server-github"],
+              env: {
+                GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const { runImportCommand } = await import("./import");
+    await runImportCommand();
+
+    const configPath = path.join(homeDir, ".mcpmatrix", "config.yml");
+    expect(await fs.promises.readFile(configPath, "utf8")).toContain("github:");
+  });
+
+  it("validates the canonical config against local commands", async () => {
+    const homeDir = await createTempHome();
+
+    await writeUserConfig(
+      homeDir,
+      `servers:
+  github:
+    command: node
+scopes:
+  global:
+    enable:
+      - github
+`,
+    );
+
+    const { runValidateCommand } = await import("./validate");
+    await expect(runValidateCommand()).resolves.toBeUndefined();
   });
 });

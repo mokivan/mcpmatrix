@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   writeCodexConfig: vi.fn(),
   readClaudeConfig: vi.fn(),
   writeClaudeConfig: vi.fn(),
+  readGeminiConfig: vi.fn(),
+  writeGeminiConfig: vi.fn(),
   loadConfig: vi.fn(),
   detectRepoPath: vi.fn(),
   resolveServers: vi.fn(),
@@ -20,6 +22,11 @@ vi.mock("../../adapters/codex/writer", () => ({
 vi.mock("../../adapters/claude/writer", () => ({
   readClaudeConfig: mocks.readClaudeConfig,
   writeClaudeConfig: mocks.writeClaudeConfig,
+}));
+
+vi.mock("../../adapters/gemini/writer", () => ({
+  readGeminiConfig: mocks.readGeminiConfig,
+  writeGeminiConfig: mocks.writeGeminiConfig,
 }));
 
 vi.mock("../../core/config-loader", () => ({
@@ -45,6 +52,7 @@ describe("runApplyCommand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.readCodexConfig.mockResolvedValue("");
+    mocks.readGeminiConfig.mockResolvedValue({});
     mocks.loadConfig.mockResolvedValue({
       servers: {
         github: {
@@ -86,5 +94,6 @@ describe("runApplyCommand", () => {
     expect(mocks.readCodexConfig).toHaveBeenCalled();
     expect(mocks.writeCodexConfig).not.toHaveBeenCalled();
     expect(mocks.writeClaudeConfig).not.toHaveBeenCalled();
+    expect(mocks.writeGeminiConfig).not.toHaveBeenCalled();
   });
 });

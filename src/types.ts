@@ -46,3 +46,15 @@ export interface RepoDetectionResult {
   repoPath: string;
   detectionMode: "flag" | "git" | "cwd";
 }
+
+export type SupportedClient = "codex" | "claude" | "gemini";
+
+export interface ImportedConfigSource {
+  client: SupportedClient;
+  filePath: string;
+}
+
+export interface ImportedConfigResult {
+  config: McpMatrixConfig;
+  importedSources: ImportedConfigSource[];
+}
