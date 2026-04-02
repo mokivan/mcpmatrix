@@ -1,10 +1,11 @@
 import { readClaudeConfig, renderClaudeConfig } from "../../adapters/claude/writer";
 import { readCodexConfig, renderCodexManagedSection } from "../../adapters/codex/writer";
+import { readGeminiConfig, renderGeminiConfig } from "../../adapters/gemini/writer";
 import { loadConfig } from "../../core/config-loader";
 import { detectRepoPath } from "../../core/repo-detector";
 import { resolveServers } from "../../core/resolver";
 import { logInfo, logWarn } from "../../utils/logger";
-import { getClaudeConfigPath, getCodexConfigPath } from "../../utils/paths";
+import { getClaudeConfigPath, getCodexConfigPath, getGeminiConfigPath } from "../../utils/paths";
 
 function estimateLineDiff(beforeContent: string, afterContent: string): number {
   const beforeLines = beforeContent.split(/\r?\n/).length;
@@ -23,11 +24,15 @@ export async function runPlanCommand(options?: { repo?: string }): Promise<void>
 
   const codexPath = getCodexConfigPath();
   const claudePath = getClaudeConfigPath();
+  const geminiPath = getGeminiConfigPath();
   const codexExisting = await readCodexConfig(codexPath);
   const codexNext = renderCodexManagedSection(resolution.servers);
   const claudeExistingConfig = await readClaudeConfig(claudePath);
   const claudeExisting = JSON.stringify(claudeExistingConfig, null, 2);
   const claudeNext = `${JSON.stringify(renderClaudeConfig(claudeExistingConfig, resolution.servers), null, 2)}\n`;
+  const geminiExistingConfig = await readGeminiConfig(geminiPath);
+  const geminiExisting = JSON.stringify(geminiExistingConfig, null, 2);
+  const geminiNext = `${JSON.stringify(renderGeminiConfig(geminiExistingConfig, resolution.servers), null, 2)}\n`;
 
   logInfo(`Repo: ${resolution.repoPath}`);
   logInfo(`Detection: ${repoDetection.detectionMode}`);
@@ -45,8 +50,10 @@ export async function runPlanCommand(options?: { repo?: string }): Promise<void>
   logInfo("Files to update:");
   logInfo(`- ${codexPath}`);
   logInfo(`- ${claudePath}`);
+  logInfo(`- ${geminiPath}`);
   logInfo("Estimated diff:");
   logInfo(`- Codex managed section lines: ${estimateLineDiff("", codexNext)}`);
   logInfo(`- Claude JSON line delta: ${estimateLineDiff(claudeExisting, claudeNext)}`);
+  logInfo(`- Gemini JSON line delta: ${estimateLineDiff(geminiExisting, geminiNext)}`);
   logInfo(`- Existing Codex content preserved outside managed block: ${codexExisting.trim().length > 0 ? "yes" : "n/a"}`);
 }

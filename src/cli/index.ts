@@ -1,18 +1,27 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { runApplyCommand } from "./commands/apply";
+import { runImportCommand } from "./commands/import";
 import { runInitCommand } from "./commands/init";
 import { runPlanCommand } from "./commands/plan";
+import { runValidateCommand } from "./commands/validate";
 import { logError } from "../utils/logger";
 
 async function main(): Promise<void> {
   const program = new Command();
 
-  program.name("mcpmatrix").description("Centralized MCP configuration manager").version("0.1.0");
+  program.name("mcpmatrix").description("Centralized MCP configuration manager").version("1.0.0");
 
   program.command("init").description("Create the initial ~/.mcpmatrix/config.yml file").action(async () => {
     await runInitCommand();
   });
+
+  program
+    .command("import")
+    .description("Import existing client MCP configs into ~/.mcpmatrix/config.yml")
+    .action(async () => {
+      await runImportCommand();
+    });
 
   program
     .command("plan")
@@ -28,6 +37,13 @@ async function main(): Promise<void> {
     .option("--repo <path>", "Override the detected repository path")
     .action(async (options: { repo?: string }) => {
       await runApplyCommand(options);
+    });
+
+  program
+    .command("validate")
+    .description("Validate ~/.mcpmatrix/config.yml and referenced MCP commands")
+    .action(async () => {
+      await runValidateCommand();
     });
 
   await program.parseAsync(process.argv);

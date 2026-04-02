@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.0
+
+First stable feature-complete release of `@mokivan/mcpmatrix`.
+
+Included in `1.0.0`:
+
+- canonical YAML config in `~/.mcpmatrix/config.yml`
+- deterministic resolver for `global`, `tags`, and `repos`
+- repository detection with `--repo`, git root search, and cwd fallback
+- `init`, `import`, `validate`, `plan`, and `apply` CLI commands
+- Codex CLI output via a managed block in `~/.codex/config.toml`
+- Claude Code output via `mcpServers` in `~/.claude.json`
+- Gemini CLI output via `mcpServers` in `~/.gemini/settings.json`
+- config import from Codex, Claude Code, and Gemini client files
+- local command validation for canonical server definitions
+- Node.js 20 as the minimum supported runtime
+- `.bak` backups before overwriting client config files
+- build, lint, unit tests, integration tests, and smoke coverage
+- CI matrix for Windows, Linux, and macOS
+
 ## 0.1.0
 
 Initial public release of `@mokivan/mcpmatrix`.
@@ -20,4 +40,5 @@ Not included in `0.1.0`:
 
 - Gemini CLI
 - config import
+- `validate` command
 - TUI or doctor commands

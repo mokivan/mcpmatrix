@@ -23,6 +23,11 @@ async function main() {
       USERPROFILE: tempHome,
     };
 
+    const { stdout: versionOutput } = await runCli(["--version"], env);
+    if (versionOutput.trim() !== "1.0.0") {
+      throw new Error(`Unexpected CLI version: ${versionOutput.trim()}`);
+    }
+
     await runCli(["init"], env);
 
     const configPath = path.join(tempHome, ".mcpmatrix", "config.yml");
@@ -43,11 +48,47 @@ scopes:
       "utf8",
     );
 
+    await runCli(["validate"], env);
     await runCli(["plan", "--repo", repoPath], env);
     await runCli(["apply", "--repo", repoPath], env);
 
     await fs.access(path.join(tempHome, ".codex", "config.toml"));
     await fs.access(path.join(tempHome, ".claude.json"));
+    await fs.access(path.join(tempHome, ".gemini", "settings.json"));
+
+    const importHome = await fs.mkdtemp(path.join(os.tmpdir(), "mcpmatrix-import-smoke-"));
+
+    try {
+      const importEnv = {
+        ...process.env,
+        HOME: importHome,
+        USERPROFILE: importHome,
+      };
+
+      await fs.writeFile(
+        path.join(importHome, ".claude.json"),
+        JSON.stringify(
+          {
+            mcpServers: {
+              github: {
+                command: "npx",
+                args: ["-y", "@modelcontextprotocol/server-github"],
+                env: {},
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        "utf8",
+      );
+
+      await runCli(["import"], importEnv);
+      await runCli(["validate"], importEnv);
+      await fs.access(path.join(importHome, ".mcpmatrix", "config.yml"));
+    } finally {
+      await fs.rm(importHome, { recursive: true, force: true });
+    }
   } finally {
     await fs.rm(tempHome, { recursive: true, force: true });
   }
