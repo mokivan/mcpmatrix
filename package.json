@@ -1,0 +1,22 @@
+{
+  "name": "mcpmatrix",
+  "version": "0.1.0",
+  "description": "Define MCP servers once and generate configs for Codex and Claude Code from a canonical MCP configuration",
+  "bin": {
+    "mcpmatrix": "dist/cli/index.js",
+    "mmx": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli/index.ts"
+  },
+  "dependencies": {
+    "yaml": "^2.3.0",
+    "commander": "^11.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0"
+  }
+}
