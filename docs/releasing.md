@@ -1,6 +1,6 @@
 # Releasing `@mokivan/mcpmatrix`
 
-`@mokivan/mcpmatrix@0.1.0` is published to the public npm registry from GitHub Actions after merges to `master`.
+`@mokivan/mcpmatrix@0.1.0` is already published to the public npm registry. Ongoing releases continue from GitHub Actions after merges to `master`.
 
 ## Required secret
 
@@ -49,3 +49,4 @@ Also confirm:
 - npm shows the expected README and metadata
 - published package contains only runtime artifacts
 - docs still claim support only for Codex CLI and Claude Code CLI
+- `CHANGELOG.md` reflects the released scope

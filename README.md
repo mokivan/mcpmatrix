@@ -2,6 +2,8 @@
 
 Define MCP servers once and generate client configs from a single canonical configuration.
 
+Current stable release: `0.1.0`
+
 `@mokivan/mcpmatrix@0.1.0` officially supports:
 
 - Codex CLI
@@ -12,6 +14,10 @@ Define MCP servers once and generate client configs from a single canonical conf
 - Gemini CLI support
 - import from existing client configs
 - TUI or diagnostics commands
+
+Next planned roadmap phase:
+
+- `v1`: Gemini CLI support, config import, stronger validation, npm distribution polish
 
 ## Install
 
@@ -186,6 +192,10 @@ npm run test:smoke
 ## Release
 
 `0.1.0` is published as the public scoped package `@mokivan/mcpmatrix` from GitHub Actions after merges to `master`, guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
+
+Published package:
+
+- `@mokivan/mcpmatrix@0.1.0`
 
 ## Source of Truth
 
