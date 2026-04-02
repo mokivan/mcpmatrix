@@ -1,10 +1,14 @@
 # Releasing `@mokivan/mcpmatrix`
 
-`@mokivan/mcpmatrix@0.1.0` is already published to the public npm registry. Ongoing releases continue from GitHub Actions after merges to `master`.
+`@mokivan/mcpmatrix@1.0.0` is the current public npm release. Ongoing releases continue from GitHub Actions after merges to `master`.
 
 ## Required secret
 
 - `NPM_TOKEN` with permission to publish the `@mokivan/mcpmatrix` package
+
+## Runtime baseline
+
+- Node.js 20 or newer
 
 ## Merge gate for the release PR
 
@@ -43,6 +47,7 @@ After publish:
 ```bash
 npm install -g @mokivan/mcpmatrix
 mcpmatrix --help
+mcpmatrix --version
 mcpmatrix init
 mcpmatrix validate
 ```

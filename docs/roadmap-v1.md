@@ -57,7 +57,7 @@ CLI available as:
 
 Install with:
 
-`npm install -g mcpmatrix`
+`npm install -g @mokivan/mcpmatrix`
 
 ## Configuration Validation
 

@@ -1,6 +1,6 @@
 {
   "name": "@mokivan/mcpmatrix",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "license": "MIT",
   "description": "Define MCP servers once and generate configs for Codex, Claude Code, and Gemini from a canonical MCP configuration",
   "keywords": [
@@ -20,7 +20,7 @@
     "url": "git+https://github.com/mokivan/mcpmatrix.git"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "bin": {
     "mcpmatrix": "dist/cli/index.js",

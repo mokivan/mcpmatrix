@@ -23,6 +23,11 @@ async function main() {
       USERPROFILE: tempHome,
     };
 
+    const { stdout: versionOutput } = await runCli(["--version"], env);
+    if (versionOutput.trim() !== "1.0.0") {
+      throw new Error(`Unexpected CLI version: ${versionOutput.trim()}`);
+    }
+
     await runCli(["init"], env);
 
     const configPath = path.join(tempHome, ".mcpmatrix", "config.yml");

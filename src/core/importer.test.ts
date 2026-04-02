@@ -34,6 +34,34 @@ async function createTempHome(): Promise<string> {
 }
 
 describe("importer", () => {
+  it("imports servers from codex config.toml", async () => {
+    const homeDir = await createTempHome();
+
+    await fs.promises.mkdir(path.join(homeDir, ".codex"), { recursive: true });
+    await fs.promises.writeFile(
+      path.join(homeDir, ".codex", "config.toml"),
+      `[[mcp_servers]]
+name = "github"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
+`,
+      "utf8",
+    );
+
+    const imported = await importExistingConfigs();
+
+    expect(imported.importedSources.map((source) => source.client)).toEqual(["codex"]);
+    expect(imported.config.servers.github).toEqual({
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-github"],
+      env: {
+        GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+      },
+    });
+    expect(imported.config.scopes?.global?.enable).toEqual(["github"]);
+  });
+
   it("imports servers from claude and gemini configs", async () => {
     const homeDir = await createTempHome();
 

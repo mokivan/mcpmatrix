@@ -10,7 +10,7 @@ import { logError } from "../utils/logger";
 async function main(): Promise<void> {
   const program = new Command();
 
-  program.name("mcpmatrix").description("Centralized MCP configuration manager").version("0.1.0");
+  program.name("mcpmatrix").description("Centralized MCP configuration manager").version("1.0.0");
 
   program.command("init").description("Create the initial ~/.mcpmatrix/config.yml file").action(async () => {
     await runInitCommand();

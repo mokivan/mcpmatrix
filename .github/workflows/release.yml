@@ -103,11 +103,12 @@ jobs:
           `@mokivan/mcpmatrix@${{ steps.package.outputs.version }}` supports:
           - Codex CLI
           - Claude Code CLI
-
-          This release does not include:
           - Gemini CLI
           - config import
-          - TUI or doctor commands
+          - validate command
+
+          Runtime requirement:
+          - Node.js 20 or newer
           EOF
 
       - name: Create GitHub Release

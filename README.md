@@ -2,28 +2,15 @@
 
 Define MCP servers once and generate client configs from a single canonical configuration.
 
-Current development phase: `v1`
+Current stable release: `@mokivan/mcpmatrix@1.0.0`
 
-Current published npm release: `@mokivan/mcpmatrix@0.1.0`
+`@mokivan/mcpmatrix@1.0.0` officially supports:
 
-Implemented in the current source tree:
-
-- Codex CLI support
-- Claude Code CLI support
-- Gemini CLI support
+- Codex CLI
+- Claude Code CLI
+- Gemini CLI
 - config import from existing client files
 - explicit config validation
-
-Published in `0.1.0`:
-
-- Codex CLI support
-- Claude Code CLI support
-
-Not yet published from this branch:
-
-- Gemini CLI support
-- config import
-- `validate` command
 
 ## Install
 
@@ -37,6 +24,10 @@ Available binaries:
 
 - `mcpmatrix`
 - `mmx`
+
+Minimum Node.js version:
+
+- `20`
 
 ## Quick Start
 
@@ -144,7 +135,7 @@ Repository detection order:
 
 Resolves the same server set and writes client configs.
 
-Client outputs in the current source tree:
+Client outputs:
 
 - Codex: `~/.codex/config.toml`
 - Claude Code: `~/.claude.json`
@@ -229,7 +220,7 @@ npm run test:smoke
 
 ## Release
 
-`0.1.0` is published as the public scoped package `@mokivan/mcpmatrix` from GitHub Actions after merges to `master`, guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
+`1.0.0` is published as the public scoped package `@mokivan/mcpmatrix` from GitHub Actions after merges to `master`, guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
 
 ## Documentation Guard
 
@@ -238,7 +229,6 @@ When a roadmap phase is implemented or the supported client matrix changes, upda
 Minimum README updates for that case:
 
 - supported clients
-- published versus unreleased feature status
 - user-facing commands or setup changes
 - release and install instructions if package metadata changes
 
