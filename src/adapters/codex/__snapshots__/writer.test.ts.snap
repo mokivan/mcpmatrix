@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`codex writer > merges managed content without removing unrelated settings 1`] = `
+"model = "gpt-5"
+
+# BEGIN MCPMATRIX MANAGED MCP SERVERS
+[[mcp_servers]]
+name = "github"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
+
+# END MCPMATRIX MANAGED MCP SERVERS
+"
+`;
+
+exports[`codex writer > renders the managed section snapshot 1`] = `
+"# BEGIN MCPMATRIX MANAGED MCP SERVERS
+[[mcp_servers]]
+name = "github"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
+
+# END MCPMATRIX MANAGED MCP SERVERS
+"
+`;

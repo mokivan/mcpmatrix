@@ -37,12 +37,36 @@ The shorter non-prefixed docs in `docs/specs/` are reference summaries.
 `v0.1` targets:
 
 - central YAML config at `~/.mcpmatrix/config.yml`
+- `init`, `plan`, and `apply` commands
 - scope resolution for `global`, `tags`, and `repos`
 - repository detection
-- `plan` and `apply` commands
 - backups before overwriting client config files
 
 `v0.1` explicitly does not include Gemini support.
+
+## Commands
+
+Initialize the global config:
+
+```bash
+mcpmatrix init
+```
+
+Preview the resolved MCP servers and target file changes:
+
+```bash
+mcpmatrix plan
+mcpmatrix plan --repo /absolute/path/to/repo
+```
+
+Apply the resolved configuration to Codex and Claude:
+
+```bash
+mcpmatrix apply
+mcpmatrix apply --repo /absolute/path/to/repo
+```
+
+`apply` updates the managed MCP section in `~/.codex/config.toml`, updates `mcpServers` in `~/.claude.json`, and writes `.bak` backups before overwriting either file.
 
 ## Development
 
@@ -62,6 +86,12 @@ Build:
 
 ```bash
 npm run build
+```
+
+Test:
+
+```bash
+npm test
 ```
 
 ## Documentation Guard

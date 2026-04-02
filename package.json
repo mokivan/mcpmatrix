@@ -8,13 +8,15 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node src/cli/index.ts"
+    "dev": "ts-node src/cli/index.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "yaml": "^2.3.0",
     "commander": "^11.0.0"
   },
   "devDependencies": {
+    "vitest": "^3.2.4",
     "typescript": "^5.4.0",
     "ts-node": "^10.9.0",
     "@types/node": "^20.0.0"
