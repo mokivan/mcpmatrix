@@ -13,6 +13,10 @@ export function getGlobalConfigPath(): string {
   return path.join(getMcpMatrixDir(), "config.yml");
 }
 
+export function getBackupsDir(): string {
+  return path.join(getMcpMatrixDir(), "backups");
+}
+
 export function getCodexConfigPath(): string {
   return path.join(getHomeDir(), ".codex", "config.toml");
 }

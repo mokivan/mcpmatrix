@@ -69,3 +69,37 @@ export interface ApplyResult {
   targets: ApplyTargetResult[];
   rollbackPerformed: boolean;
 }
+
+export interface CommandValidationResult {
+  command: string;
+  exists: boolean;
+  resolvedPath: string | null;
+}
+
+export interface ServerDoctorCheck {
+  serverName: string;
+  command: CommandValidationResult;
+  missingEnvVars: string[];
+}
+
+export interface RepoAccessibilityCheck {
+  repoPath: string;
+  accessible: boolean;
+}
+
+export interface StackTagSuggestion {
+  tag: string;
+  evidence: string;
+}
+
+export interface DoctorReport {
+  configPath: string;
+  detectedRepoPath: string;
+  detectionMode: RepoDetectionResult["detectionMode"];
+  matchedRepo: boolean;
+  warnings: string[];
+  activeServers: ResolvedServer[];
+  serverChecks: ServerDoctorCheck[];
+  repoChecks: RepoAccessibilityCheck[];
+  suggestedTags: StackTagSuggestion[];
+}
