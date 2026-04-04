@@ -49,6 +49,12 @@ function openConfigInEditor(configPath: string): void {
   }
 }
 
+function assertInteractiveTerminal(): void {
+  if (!input.isTTY || !output.isTTY) {
+    throw new Error("mcpmatrix tui requires an interactive terminal.");
+  }
+}
+
 async function buildContext(options?: { repo?: string }): Promise<TuiContext> {
   const config = await loadConfig();
   const repoDetection = options?.repo
@@ -185,6 +191,7 @@ async function toggleRepoServers(
 }
 
 export async function runTuiCommand(options?: { repo?: string }): Promise<void> {
+  assertInteractiveTerminal();
   const rl = readline.createInterface({ input, output });
 
   try {
