@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.1
+
+Release workflow fix for npm Trusted Publisher and GitHub release generation.
+
+Included in `2.0.1`:
+
+- release publish job updated to use Node.js `22.14.0`
+- npm upgraded to `11.5.1` in the release workflow before publish
+- release runtime diagnostics added to the GitHub Actions logs
+- npm publish flow aligned with current Trusted Publisher behavior
+- release docs updated to match the hardened publish flow
+
+Compatibility notes:
+
+- published CLI contract is unchanged from `2.0.0`
+- this release only hardens automation around publishing and release creation
+
 ## 1.1.0
 
 Hardening release for `@mokivan/mcpmatrix`.
