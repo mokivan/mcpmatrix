@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
-import { commandExists, validateExecutableCommands } from "./config-validator";
+import { commandExists, getMissingEnvVars, validateServerDefinitions } from "./config-validator";
 import { McpMatrixConfig } from "../types";
 
 const tempDirs: string[] = [];
@@ -53,15 +53,62 @@ describe("config-validator", () => {
     expect(commandExists(scriptPath)).toBe(false);
   });
 
-  it("rejects missing commands during validation", () => {
+  it("rejects missing stdio commands during validation", () => {
     const config: McpMatrixConfig = {
       servers: {
         github: {
+          transport: "stdio",
           command: "definitely-not-a-real-command",
         },
       },
     };
 
-    expect(() => validateExecutableCommands(config)).toThrow("Command not found");
+    expect(() => validateServerDefinitions(config)).toThrow("Command not found");
+  });
+
+  it("accepts valid remote server definitions", () => {
+    const config: McpMatrixConfig = {
+      servers: {
+        medusa: {
+          transport: "remote",
+          protocol: "http",
+          url: "https://docs.medusajs.com/mcp",
+        },
+      },
+    };
+
+    expect(() => validateServerDefinitions(config)).not.toThrow();
+  });
+
+  it("rejects invalid remote URLs during validation", () => {
+    const config: McpMatrixConfig = {
+      servers: {
+        medusa: {
+          transport: "remote",
+          protocol: "http",
+          url: "not-a-url",
+        },
+      },
+    };
+
+    expect(() => validateServerDefinitions(config)).toThrow("Invalid remote server");
+  });
+
+  it("collects missing env vars from stdio and remote strings", () => {
+    const missing = getMissingEnvVars({
+      transport: "remote",
+      protocol: "http",
+      url: "https://example.com/mcp",
+      headers: {
+        Authorization: "Bearer ${env:REMOTE_TOKEN}",
+      },
+      auth: {
+        type: "oauth",
+        clientId: "${env:REMOTE_CLIENT_ID}",
+      },
+    });
+
+    expect(missing).toContain("REMOTE_TOKEN");
+    expect(missing).toContain("REMOTE_CLIENT_ID");
   });
 });

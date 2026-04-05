@@ -9,5 +9,6 @@ Summary:
 - `mcpmatrix import` reads Codex, Claude Code, and Gemini MCP configs from the user home directory
 - output is `~/.mcpmatrix/config.yml`
 - imported servers populate `servers` and `scopes.global.enable`
+- stdio and supported remote client entries are normalized into the canonical transport model
 - import fails if the canonical config already exists
 - duplicate server names are allowed only when definitions are identical across clients

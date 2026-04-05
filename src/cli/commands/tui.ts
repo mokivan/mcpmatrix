@@ -234,8 +234,9 @@ function renderDetailPanel(
   } else {
     lines.push(`Name: ${selectedRow.name}`);
     lines.push(`Status: ${getRowStatusText(selectedRow)}`);
-    lines.push(`Command: ${selectedRow.commandText || "(none)"}`);
-    lines.push(`Env vars: ${selectedRow.envVarNames.join(", ") || "(none)"}`);
+    lines.push(`Transport: ${selectedRow.transportLabel}`);
+    lines.push(`Definition: ${selectedRow.commandText || "(none)"}`);
+    lines.push(`Env refs: ${selectedRow.envVarNames.join(", ") || "(none)"}`);
     lines.push(`Repo tags: ${context.tags.join(", ") || "(none)"}`);
     lines.push(selectedRow.isLocked ? "Toggle: locked by additive scope rules" : "Toggle: allowed from this view");
   }

@@ -1,4 +1,5 @@
 import { hasDoctorErrors, runDoctor } from "../../core/doctor";
+import { describeServer } from "../../core/server-config";
 import { logInfo, logWarn } from "../../utils/logger";
 
 export async function runDoctorCommand(options?: { repo?: string }): Promise<void> {
@@ -15,13 +16,24 @@ export async function runDoctorCommand(options?: { repo?: string }): Promise<voi
 
   logInfo("Server validation:");
   for (const check of report.serverChecks) {
-    const commandStatus = check.command.exists
-      ? `ok (${check.command.resolvedPath ?? check.command.command})`
-      : `missing (${check.command.command})`;
-    logInfo(`- ${check.serverName}: command ${commandStatus}`);
+    if (check.runtime.transport === "stdio") {
+      const commandStatus = check.runtime.exists
+        ? `ok (${check.runtime.resolvedPath ?? check.runtime.command})`
+        : `missing (${check.runtime.command})`;
+      logInfo(`- ${check.serverName}: stdio ${commandStatus}`);
+    } else {
+      logInfo(`- ${check.serverName}: remote ${check.runtime.valid ? "ok" : `invalid (${check.runtime.issues.join(", ")})`}`);
+    }
 
     if (check.missingEnvVars.length > 0) {
       logWarn(`Server ${check.serverName} is missing env vars: ${check.missingEnvVars.join(", ")}`);
+    }
+
+    for (const client of ["codex", "claude", "gemini"] as const) {
+      const compatibility = check.compatibility[client];
+      if (!compatibility.supported) {
+        logWarn(`Server ${check.serverName} is incompatible with ${client}: ${compatibility.reason}`);
+      }
     }
   }
 
@@ -39,7 +51,7 @@ export async function runDoctorCommand(options?: { repo?: string }): Promise<voi
     logInfo("- (none)");
   } else {
     for (const server of report.activeServers) {
-      logInfo(`- ${server.name} -> ${server.command} ${server.args.join(" ")}`.trimEnd());
+      logInfo(`- ${describeServer(server)}`);
     }
   }
 

@@ -25,6 +25,7 @@ describe("tui-service", () => {
     mocks.loadConfig.mockResolvedValue({
       servers: {
         github: {
+          transport: "stdio",
           command: "npx",
           args: ["-y", "@modelcontextprotocol/server-github"],
         },
@@ -48,6 +49,7 @@ describe("tui-service", () => {
       servers: [
         {
           name: "github",
+          transport: "stdio",
           command: "npx",
           args: ["-y", "@modelcontextprotocol/server-github"],
           env: {},
@@ -63,6 +65,7 @@ describe("tui-service", () => {
       activeServers: [
         {
           name: "github",
+          transport: "stdio",
           command: "npx",
           args: ["-y", "@modelcontextprotocol/server-github"],
           env: {},
@@ -71,10 +74,17 @@ describe("tui-service", () => {
       serverChecks: [
         {
           serverName: "github",
-          command: {
+          transport: "stdio",
+          runtime: {
+            transport: "stdio",
             command: "npx",
             exists: true,
             resolvedPath: "/usr/bin/npx",
+          },
+          compatibility: {
+            codex: { supported: true, reason: null },
+            claude: { supported: true, reason: null },
+            gemini: { supported: true, reason: null },
           },
           missingEnvVars: [],
         },

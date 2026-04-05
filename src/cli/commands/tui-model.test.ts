@@ -14,10 +14,12 @@ import {
 const config: McpMatrixConfig = {
   servers: {
     browser: {
+      transport: "stdio",
       command: "npx",
       args: ["-y", "@modelcontextprotocol/server-browser"],
     },
     github: {
+      transport: "stdio",
       command: "npx",
       args: ["-y", "@modelcontextprotocol/server-github"],
       env: {
@@ -25,6 +27,20 @@ const config: McpMatrixConfig = {
       },
     },
     postgres: {
+      transport: "remote",
+      protocol: "http",
+      url: "https://example.com/mcp",
+      headers: {
+        Authorization: "Bearer ${env:POSTGRES_TOKEN}",
+      },
+    },
+    remoteSse: {
+      transport: "remote",
+      protocol: "sse",
+      url: "https://example.com/sse",
+    },
+    shell: {
+      transport: "stdio",
       command: "uvx",
       args: ["postgres-server"],
     },
@@ -50,6 +66,7 @@ const resolution: ResolutionResult = {
   servers: [
     {
       name: "github",
+      transport: "stdio",
       command: "npx",
       args: ["-y", "@modelcontextprotocol/server-github"],
       env: {
@@ -58,6 +75,7 @@ const resolution: ResolutionResult = {
     },
     {
       name: "browser",
+      transport: "stdio",
       command: "npx",
       args: ["-y", "@modelcontextprotocol/server-browser"],
       env: {},
@@ -75,7 +93,8 @@ describe("tui-model", () => {
         source: "repo",
         isActive: true,
         isLocked: false,
-        commandText: "npx -y @modelcontextprotocol/server-browser",
+        transportLabel: "stdio",
+        commandText: "browser [stdio] npx -y @modelcontextprotocol/server-browser",
         envVarNames: [],
       },
       {
@@ -83,7 +102,8 @@ describe("tui-model", () => {
         source: "inherited",
         isActive: true,
         isLocked: true,
-        commandText: "npx -y @modelcontextprotocol/server-github",
+        transportLabel: "stdio",
+        commandText: "github [stdio] npx -y @modelcontextprotocol/server-github",
         envVarNames: ["GITHUB_TOKEN"],
       },
       {
@@ -91,7 +111,26 @@ describe("tui-model", () => {
         source: "inactive",
         isActive: false,
         isLocked: false,
-        commandText: "uvx postgres-server",
+        transportLabel: "remote/http",
+        commandText: "postgres [remote/http] https://example.com/mcp",
+        envVarNames: ["POSTGRES_TOKEN"],
+      },
+      {
+        name: "remoteSse",
+        source: "inactive",
+        isActive: false,
+        isLocked: false,
+        transportLabel: "remote/sse",
+        commandText: "remoteSse [remote/sse] https://example.com/sse",
+        envVarNames: [],
+      },
+      {
+        name: "shell",
+        source: "inactive",
+        isActive: false,
+        isLocked: false,
+        transportLabel: "stdio",
+        commandText: "shell [stdio] uvx postgres-server",
         envVarNames: [],
       },
     ]);
@@ -161,19 +200,34 @@ describe("tui-model", () => {
       serverChecks: [
         {
           serverName: "github",
-          command: {
+          transport: "stdio",
+          runtime: {
+            transport: "stdio",
             command: "npx",
             exists: true,
             resolvedPath: "/usr/bin/npx",
+          },
+          compatibility: {
+            codex: { supported: true, reason: null },
+            claude: { supported: true, reason: null },
+            gemini: { supported: true, reason: null },
           },
           missingEnvVars: [],
         },
         {
           serverName: "postgres",
-          command: {
-            command: "uvx",
-            exists: false,
-            resolvedPath: null,
+          transport: "remote",
+          runtime: {
+            transport: "remote",
+            url: "https://example.com/sse",
+            protocol: "sse",
+            valid: false,
+            issues: ["invalid URL"],
+          },
+          compatibility: {
+            codex: { supported: false, reason: "Codex cannot persist SSE metadata" },
+            claude: { supported: true, reason: null },
+            gemini: { supported: false, reason: "Gemini does not support SSE" },
           },
           missingEnvVars: ["DATABASE_URL"],
         },
@@ -208,7 +262,8 @@ describe("tui-model", () => {
     ]);
     expect(viewModel.serverChecks[1]).toEqual({
       label: "postgres",
-      detail: "command missing | missing env: DATABASE_URL",
+      detail:
+        "remote | remote invalid | https://example.com/sse | issues: invalid URL | missing env: DATABASE_URL | compat: codex: Codex cannot persist SSE metadata; gemini: Gemini does not support SSE",
       severity: "error",
     });
     expect(viewModel.repoChecks[0]?.severity).toBe("error");

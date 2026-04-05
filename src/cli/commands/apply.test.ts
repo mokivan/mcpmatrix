@@ -48,6 +48,7 @@ describe("runApplyCommand", () => {
     mocks.loadConfig.mockResolvedValue({
       servers: {
         github: {
+          transport: "stdio",
           command: "npx",
           args: ["-y", "@modelcontextprotocol/server-github"],
         },
@@ -71,6 +72,7 @@ describe("runApplyCommand", () => {
       servers: [
         {
           name: "github",
+          transport: "stdio",
           command: "npx",
           args: ["-y", "@modelcontextprotocol/server-github"],
           env: {},

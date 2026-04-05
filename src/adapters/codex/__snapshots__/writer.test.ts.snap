@@ -9,6 +9,9 @@ command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
 env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
 
+[mcp_servers."medusa"]
+url = "https://docs.medusajs.com/mcp"
+
 # END MCPMATRIX MANAGED MCP SERVERS
 "
 `;
@@ -19,6 +22,9 @@ exports[`codex writer > renders the managed section snapshot 1`] = `
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
 env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
+
+[mcp_servers."medusa"]
+url = "https://docs.medusajs.com/mcp"
 
 # END MCPMATRIX MANAGED MCP SERVERS
 "

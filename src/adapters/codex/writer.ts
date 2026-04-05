@@ -3,6 +3,7 @@ import type { ResolvedServer } from "../../types";
 import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getCodexConfigPath } from "../../utils/paths";
 import { readTextFile } from "../../utils/text";
+import { getClientCompatibility } from "../../core/server-config";
 
 const START_MARKER = "# BEGIN MCPMATRIX MANAGED MCP SERVERS";
 const END_MARKER = "# END MCPMATRIX MANAGED MCP SERVERS";
@@ -28,14 +29,29 @@ function formatEnvTable(env: Record<string, string>): string {
   return `{ ${entries.map(([key, value]) => `${key} = "${escapeTomlString(value)}"`).join(", ")} }`;
 }
 
+function assertCodexSupported(server: ResolvedServer): void {
+  const compatibility = getClientCompatibility(server).codex;
+  if (!compatibility.supported) {
+    throw new Error(`Codex cannot represent server '${server.name}': ${compatibility.reason}`);
+  }
+}
+
 export function renderCodexManagedSection(servers: ResolvedServer[]): string {
   const lines = [START_MARKER];
 
   for (const server of servers) {
+    assertCodexSupported(server);
+
     lines.push(`[mcp_servers.${formatTomlKey(server.name)}]`);
-    lines.push(`command = "${escapeTomlString(server.command)}"`);
-    lines.push(`args = ${formatArray(server.args)}`);
-    lines.push(`env = ${formatEnvTable(server.env)}`);
+
+    if (server.transport === "stdio") {
+      lines.push(`command = "${escapeTomlString(server.command)}"`);
+      lines.push(`args = ${formatArray(server.args ?? [])}`);
+      lines.push(`env = ${formatEnvTable(server.env ?? {})}`);
+    } else {
+      lines.push(`url = "${escapeTomlString(server.url)}"`);
+    }
+
     lines.push("");
   }
 

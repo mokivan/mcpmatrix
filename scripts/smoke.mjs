@@ -41,6 +41,7 @@ async function main() {
       configPath,
       `servers:
   github:
+    transport: stdio
     command: npx
     args: ["-y", "@modelcontextprotocol/server-github"]
 scopes:

@@ -5,11 +5,19 @@ import { ResolvedServer } from "../../types";
 const servers: ResolvedServer[] = [
   {
     name: "github",
+    transport: "stdio",
     command: "npx",
     args: ["-y", "@modelcontextprotocol/server-github"],
     env: {
       GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
     },
+  },
+  {
+    name: "medusa",
+    transport: "remote",
+    protocol: "http",
+    url: "https://docs.medusajs.com/mcp",
+    headers: {},
   },
 ];
 

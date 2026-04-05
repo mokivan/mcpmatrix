@@ -91,6 +91,7 @@ describe("CLI command integration", () => {
       homeDir,
       `servers:
   github:
+    transport: stdio
     command: npx
     args: ["-y", "@modelcontextprotocol/server-github"]
 scopes:
@@ -103,7 +104,7 @@ scopes:
     await runPlanCommand({ repo: repoDir });
 
     expect(logSpy.mock.calls.flat().join("\n")).toContain("Active servers:");
-    expect(logSpy.mock.calls.flat().join("\n")).toContain("- github -> npx -y @modelcontextprotocol/server-github");
+    expect(logSpy.mock.calls.flat().join("\n")).toContain("- github [stdio] npx -y @modelcontextprotocol/server-github");
     expect(logSpy.mock.calls.flat().join("\n")).toContain(path.join(homeDir, ".codex", "config.toml"));
     expect(warnSpy.mock.calls.flat().join("\n")).toContain("Repository is not configured");
   });
@@ -119,6 +120,7 @@ scopes:
       homeDir,
       `servers:
   github:
+    transport: stdio
     command: npx
     args: ["-y", "@modelcontextprotocol/server-github"]
     env:
@@ -175,6 +177,7 @@ scopes:
       homeDir,
       `servers:
   github:
+    transport: stdio
     command: node
     args: ["--version"]
 scopes:
@@ -210,6 +213,7 @@ scopes:
       homeDir,
       `servers:
   github:
+    transport: stdio
     command: node
     args: ["--version"]
 scopes:
@@ -249,6 +253,7 @@ scopes:
       homeDir,
       `servers:
   github:
+    transport: stdio
     command: npx
 scopes:
   global:
@@ -306,6 +311,7 @@ scopes:
       homeDir,
       `servers:
   github:
+    transport: stdio
     command: node
 scopes:
   global:

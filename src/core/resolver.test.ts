@@ -4,16 +4,16 @@ import { McpMatrixConfig } from "../types";
 
 const baseConfig: McpMatrixConfig = {
   servers: {
-    github: { command: "npx", args: ["github"] },
-    browser: { command: "npx", args: ["browser"] },
-    postgres: { command: "npx", args: ["postgres"] },
-    redis: { command: "npx", args: ["redis"] },
+    github: { transport: "stdio", command: "npx", args: ["github"] },
+    browser: { transport: "stdio", command: "npx", args: ["browser"] },
+    postgres: { transport: "stdio", command: "npx", args: ["postgres"] },
+    medusa: { transport: "remote", protocol: "http", url: "https://docs.medusajs.com/mcp" },
   },
   scopes: {
     global: { enable: ["github"] },
     tags: {
       ecommerce: { enable: ["browser", "github"] },
-      data: { enable: ["postgres", "redis"] },
+      data: { enable: ["postgres", "medusa"] },
     },
     repos: {},
   },
@@ -57,7 +57,7 @@ describe("resolver", () => {
     );
 
     expect(result.tags).toEqual(["ecommerce", "data"]);
-    expect(result.servers.map((server) => server.name)).toEqual(["github", "browser", "postgres", "redis"]);
+    expect(result.servers.map((server) => server.name)).toEqual(["github", "browser", "postgres", "medusa"]);
   });
 
   it("falls back to global scope and warns when the repo is unknown", () => {

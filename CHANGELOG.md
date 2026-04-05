@@ -2,21 +2,27 @@
 
 ## 2.0.3
 
-Interactive TUI refresh release.
+Canonical multi-transport MCP release with interactive TUI refresh.
 
 Included in `2.0.3`:
 
+- canonical config schema upgraded from command-only servers to explicit `stdio` and `remote` transports
+- Codex import/apply now supports URL-based remote MCP servers
+- Claude adapter/import now supports stdio, remote HTTP, and remote SSE MCP definitions
+- Gemini adapter/import now supports stdio and remote HTTP MCP definitions via `httpUrl`
+- `validate`, `doctor`, and `plan` now understand remote servers and report per-client compatibility
 - `mcpmatrix tui` moved from a prompt loop to a full-screen terminal UI powered by `terminal-kit`
 - keyboard navigation added for selection, filtering, doctor inspection, refresh, and editor round-trips
 - repo-local MCP toggles now update in place and reload the canonical config after each change
-- doctor output is rendered as a structured TUI view instead of a raw text dump
+- doctor output is rendered as a structured TUI view that includes runtime and client compatibility status
 - TUI-focused unit tests added for server classification, toggle rules, doctor formatting, and non-interactive terminal failures
-- README and canonical CLI docs updated to document the richer TUI flow
+- packaged JSON Schema, canonical specs, README, smoke coverage, and snapshots updated for the multi-transport model
 
 Compatibility notes:
 
-- public CLI surface remains unchanged
-- resolver behavior and additive scope rules are unchanged
+- Codex, Claude Code, and Gemini remain first-class supported clients
+- stdio MCP flows remain supported across all three clients
+- some remote metadata remains client-specific and may cause `apply` to fail early when a target cannot represent it exactly
 - inherited MCPs from `global` or `tags` remain visible but locked in the TUI
 
 ## 2.0.2

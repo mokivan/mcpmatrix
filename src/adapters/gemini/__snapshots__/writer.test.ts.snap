@@ -13,6 +13,9 @@ exports[`gemini writer > renders the gemini config snapshot 1`] = `
       "env": {
         "GITHUB_TOKEN": "\${env:GITHUB_TOKEN}"
       }
+    },
+    "medusa": {
+      "httpUrl": "https://docs.medusajs.com/mcp"
     }
   }
 }"

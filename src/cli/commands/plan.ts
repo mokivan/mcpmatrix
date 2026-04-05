@@ -4,6 +4,7 @@ import { readGeminiConfig, renderGeminiConfig } from "../../adapters/gemini/writ
 import { loadConfig } from "../../core/config-loader";
 import { detectRepoPath } from "../../core/repo-detector";
 import { resolveServers } from "../../core/resolver";
+import { describeServer, getClientCompatibility } from "../../core/server-config";
 import { logInfo, logWarn } from "../../utils/logger";
 import { getClaudeConfigPath, getCodexConfigPath, getGeminiConfigPath } from "../../utils/paths";
 
@@ -45,7 +46,17 @@ export async function runPlanCommand(options?: { repo?: string }): Promise<void>
     logInfo("- (none)");
   } else {
     for (const server of resolution.servers) {
-      logInfo(`- ${server.name} -> ${server.command} ${server.args.join(" ")}`.trimEnd());
+      logInfo(`- ${describeServer(server)}`);
+
+      const compatibility = getClientCompatibility(server);
+      for (const client of ["codex", "claude", "gemini"] as const) {
+        const support = compatibility[client];
+        if (support.supported) {
+          logInfo(`  ${client}: ok`);
+        } else {
+          logWarn(`${server.name}: ${client} incompatible: ${support.reason}`);
+        }
+      }
     }
   }
 

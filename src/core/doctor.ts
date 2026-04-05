@@ -46,7 +46,13 @@ export async function runDoctor(options?: { repo?: string }): Promise<DoctorRepo
 
 export function hasDoctorErrors(report: DoctorReport): boolean {
   return (
-    report.serverChecks.some((check) => !check.command.exists || check.missingEnvVars.length > 0) ||
+    report.serverChecks.some(
+      (check) =>
+        (check.runtime.transport === "stdio" && !check.runtime.exists) ||
+        (check.runtime.transport === "remote" && !check.runtime.valid) ||
+        check.missingEnvVars.length > 0 ||
+        Object.values(check.compatibility).some((compatibility) => !compatibility.supported),
+    ) ||
     report.repoChecks.some((check) => !check.accessible)
   );
 }

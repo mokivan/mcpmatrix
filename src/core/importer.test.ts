@@ -34,7 +34,7 @@ async function createTempHome(): Promise<string> {
 }
 
 describe("importer", () => {
-  it("imports servers from codex config.toml", async () => {
+  it("imports stdio servers from codex config.toml", async () => {
     const homeDir = await createTempHome();
 
     await fs.promises.mkdir(path.join(homeDir, ".codex"), { recursive: true });
@@ -52,13 +52,35 @@ env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
 
     expect(imported.importedSources.map((source) => source.client)).toEqual(["codex"]);
     expect(imported.config.servers.github).toEqual({
+      transport: "stdio",
       command: "npx",
       args: ["-y", "@modelcontextprotocol/server-github"],
       env: {
         GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
       },
     });
-    expect(imported.config.scopes?.global?.enable).toEqual(["github"]);
+  });
+
+  it("imports remote url servers from codex config.toml", async () => {
+    const homeDir = await createTempHome();
+
+    await fs.promises.mkdir(path.join(homeDir, ".codex"), { recursive: true });
+    await fs.promises.writeFile(
+      path.join(homeDir, ".codex", "config.toml"),
+      `[mcp_servers.medusa]
+url = "https://docs.medusajs.com/mcp"
+`,
+      "utf8",
+    );
+
+    const imported = await importExistingConfigs();
+
+    expect(imported.config.servers.medusa).toEqual({
+      transport: "remote",
+      protocol: "auto",
+      url: "https://docs.medusajs.com/mcp",
+      headers: {},
+    });
   });
 
   it("imports legacy array-based codex servers for backward compatibility", async () => {
@@ -78,13 +100,14 @@ args = ["-y", "@modelcontextprotocol/server-github"]
     const imported = await importExistingConfigs();
 
     expect(imported.config.servers.github).toEqual({
+      transport: "stdio",
       command: "npx",
       args: ["-y", "@modelcontextprotocol/server-github"],
       env: {},
     });
   });
 
-  it("imports servers from claude and gemini configs", async () => {
+  it("imports stdio and remote servers from claude and gemini configs", async () => {
     const homeDir = await createTempHome();
 
     await fs.promises.writeFile(
@@ -93,10 +116,18 @@ args = ["-y", "@modelcontextprotocol/server-github"]
         {
           mcpServers: {
             github: {
+              type: "stdio",
               command: "npx",
               args: ["-y", "@modelcontextprotocol/server-github"],
               env: {
                 GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+              },
+            },
+            medusa: {
+              type: "http",
+              url: "https://docs.medusajs.com/mcp",
+              headers: {
+                Authorization: "Bearer ${env:MEDUSA_TOKEN}",
               },
             },
           },
@@ -118,6 +149,9 @@ args = ["-y", "@modelcontextprotocol/server-github"]
               args: ["-y", "@modelcontextprotocol/server-browser"],
               env: {},
             },
+            remoteBrowser: {
+              httpUrl: "https://example.com/mcp",
+            },
           },
         },
         null,
@@ -129,8 +163,9 @@ args = ["-y", "@modelcontextprotocol/server-github"]
     const imported = await importExistingConfigs();
 
     expect(imported.importedSources.map((source) => source.client)).toEqual(["claude", "gemini"]);
-    expect(Object.keys(imported.config.servers)).toEqual(["github", "browser"]);
-    expect(imported.config.scopes?.global?.enable).toEqual(["github", "browser"]);
+    expect(Object.keys(imported.config.servers)).toEqual(["github", "medusa", "browser", "remoteBrowser"]);
+    expect(imported.config.servers.medusa.transport).toBe("remote");
+    expect(imported.config.servers.remoteBrowser.transport).toBe("remote");
   });
 
   it("imports JSON client configs with a UTF-8 BOM", async () => {
@@ -157,10 +192,10 @@ args = ["-y", "@modelcontextprotocol/server-github"]
     const imported = await importExistingConfigs();
 
     expect(imported.importedSources.map((source) => source.client)).toEqual(["claude"]);
-    expect(imported.config.servers.github.command).toBe("node");
+    expect(imported.config.servers.github.transport).toBe("stdio");
   });
 
-  it("merges identical imported env maps regardless of key order", async () => {
+  it("merges identical imported definitions regardless of key order", async () => {
     const homeDir = await createTempHome();
 
     await fs.promises.writeFile(
@@ -168,12 +203,12 @@ args = ["-y", "@modelcontextprotocol/server-github"]
       JSON.stringify(
         {
           mcpServers: {
-            github: {
-              command: "npx",
-              args: ["-y", "@modelcontextprotocol/server-github"],
-              env: {
-                GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+            medusa: {
+              type: "http",
+              url: "https://docs.medusajs.com/mcp",
+              headers: {
                 EXTRA_TOKEN: "${env:EXTRA_TOKEN}",
+                GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
               },
             },
           },
@@ -190,13 +225,8 @@ args = ["-y", "@modelcontextprotocol/server-github"]
       JSON.stringify(
         {
           mcpServers: {
-            github: {
-              command: "npx",
-              args: ["-y", "@modelcontextprotocol/server-github"],
-              env: {
-                EXTRA_TOKEN: "${env:EXTRA_TOKEN}",
-                GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
-              },
+            medusa: {
+              httpUrl: "https://docs.medusajs.com/mcp",
             },
           },
         },
@@ -206,14 +236,7 @@ args = ["-y", "@modelcontextprotocol/server-github"]
       "utf8",
     );
 
-    const imported = await importExistingConfigs();
-
-    expect(imported.importedSources.map((source) => source.client)).toEqual(["claude", "gemini"]);
-    expect(Object.keys(imported.config.servers)).toEqual(["github"]);
-    expect(imported.config.servers.github.env).toEqual({
-      GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
-      EXTRA_TOKEN: "${env:EXTRA_TOKEN}",
-    });
+    await expect(importExistingConfigs()).rejects.toThrow("Conflicting definitions");
   });
 
   it("fails when the same server name maps to different definitions", async () => {
@@ -244,9 +267,7 @@ args = ["-y", "@modelcontextprotocol/server-github"]
         {
           mcpServers: {
             github: {
-              command: "node",
-              args: ["server.js"],
-              env: {},
+              httpUrl: "https://example.com/mcp",
             },
           },
         },
@@ -271,6 +292,7 @@ args = ["-y", "@modelcontextprotocol/server-github"]
         {
           servers: {
             github: {
+              transport: "stdio",
               command: "npx",
             },
           },

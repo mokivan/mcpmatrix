@@ -5,6 +5,7 @@ exports[`claude writer > renders the claude config snapshot 1`] = `
   "theme": "dark",
   "mcpServers": {
     "github": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
@@ -12,6 +13,17 @@ exports[`claude writer > renders the claude config snapshot 1`] = `
       ],
       "env": {
         "GITHUB_TOKEN": "\${env:GITHUB_TOKEN}"
+      }
+    },
+    "medusa": {
+      "type": "sse",
+      "url": "https://docs.medusajs.com/mcp",
+      "headers": {
+        "Authorization": "Bearer \${env:MEDUSA_TOKEN}"
+      },
+      "auth": {
+        "type": "bearer",
+        "token": "\${env:MEDUSA_TOKEN}"
       }
     }
   }

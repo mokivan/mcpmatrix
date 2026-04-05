@@ -72,6 +72,7 @@ describe("applyResolvedServers", () => {
     const result = await applyResolvedServers([
       {
         name: "github",
+        transport: "stdio",
         command: "npx",
         args: ["-y", "@modelcontextprotocol/server-github"],
         env: {},
@@ -94,6 +95,7 @@ describe("applyResolvedServers", () => {
       applyResolvedServers([
         {
           name: "github",
+          transport: "stdio",
           command: "npx",
           args: ["-y", "@modelcontextprotocol/server-github"],
           env: {},

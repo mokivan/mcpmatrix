@@ -1,4 +1,5 @@
 import type { DoctorReport, McpMatrixConfig, ResolutionResult, ResolvedServer } from "../../types";
+import { describeServer, extractEnvReferences, getServerStringValues } from "../../core/server-config";
 
 export type TuiServerSource = "repo" | "inherited" | "inactive";
 export type TuiSeverity = "info" | "ok" | "warning" | "error";
@@ -9,6 +10,7 @@ export interface TuiServerRow {
   source: TuiServerSource;
   isActive: boolean;
   isLocked: boolean;
+  transportLabel: string;
   commandText: string;
   envVarNames: string[];
 }
@@ -52,10 +54,6 @@ export interface DoctorViewModel {
   suggestedTags: DoctorViewSectionItem[];
 }
 
-function formatCommand(command: string, args: string[]): string {
-  return [command, ...args].join(" ").trim();
-}
-
 export function buildTuiServerRows(config: McpMatrixConfig, resolution: ResolutionResult): TuiServerRow[] {
   const repoScope = config.scopes?.repos?.[resolution.repoPath];
   const repoEnabled = new Set(repoScope?.enable ?? []);
@@ -76,8 +74,11 @@ export function buildTuiServerRows(config: McpMatrixConfig, resolution: Resoluti
       source,
       isActive,
       isLocked: source === "inherited",
-      commandText: formatCommand(definition.command, definition.args ?? []),
-      envVarNames: Object.keys(definition.env ?? {}).sort((left, right) => left.localeCompare(right)),
+      transportLabel: definition.transport === "stdio" ? "stdio" : `remote/${definition.protocol}`,
+      commandText: describeServer({ name: serverName, ...definition }),
+      envVarNames: Array.from(
+        new Set(getServerStringValues(definition).flatMap((value) => extractEnvReferences(value))),
+      ).sort((left, right) => left.localeCompare(right)),
     };
   });
 }
@@ -205,17 +206,35 @@ export function createDoctorViewModel(report: DoctorReport): DoctorViewModel {
     ],
     warnings: report.warnings.map(toWarningItem),
     serverChecks: report.serverChecks.map((check) => {
-      const hasErrors = !check.command.exists || check.missingEnvVars.length > 0;
-      const parts = [
-        `command ${check.command.exists ? "ok" : "missing"}`,
-      ];
+      const compatibilityIssues = Object.entries(check.compatibility)
+        .filter(([, entry]) => !entry.supported)
+        .map(([client, entry]) => `${client}: ${entry.reason ?? "unsupported"}`);
+      const hasErrors =
+        (check.runtime.transport === "stdio" && !check.runtime.exists) ||
+        (check.runtime.transport === "remote" && !check.runtime.valid) ||
+        check.missingEnvVars.length > 0 ||
+        compatibilityIssues.length > 0;
+      const parts: string[] = [check.transport];
 
-      if (check.command.resolvedPath) {
-        parts.push(check.command.resolvedPath);
+      if (check.runtime.transport === "stdio") {
+        parts.push(`command ${check.runtime.exists ? "ok" : "missing"}`);
+        if (check.runtime.resolvedPath) {
+          parts.push(check.runtime.resolvedPath);
+        }
+      } else {
+        parts.push(`remote ${check.runtime.valid ? "ok" : "invalid"}`);
+        parts.push(check.runtime.url);
+        if (check.runtime.issues.length > 0) {
+          parts.push(`issues: ${check.runtime.issues.join(", ")}`);
+        }
       }
 
       if (check.missingEnvVars.length > 0) {
         parts.push(`missing env: ${check.missingEnvVars.join(", ")}`);
+      }
+
+      if (compatibilityIssues.length > 0) {
+        parts.push(`compat: ${compatibilityIssues.join("; ")}`);
       }
 
       return {
