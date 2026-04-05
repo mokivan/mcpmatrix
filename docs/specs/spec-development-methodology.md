@@ -49,3 +49,8 @@ When the public CLI surface changes:
 - update the relevant `docs/specs/spec-*.md` files
 - keep `docs/specs/spec-cli.md` aligned with the released command set
 - keep the automated documentation guard passing
+
+When the package version changes:
+
+- add the matching section to `CHANGELOG.md`
+- keep the release-notes guard passing for the current `package.json.version`

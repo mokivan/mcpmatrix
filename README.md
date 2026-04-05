@@ -303,6 +303,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run test:docs
+npm run test:release
 npm run test:smoke
 npm run pack:check
 ```
@@ -338,6 +339,7 @@ Minimum README updates for that case:
 - release and install instructions if package metadata changes
 - keep `docs/specs/spec-cli.md` aligned with the public CLI surface
 - keep `npm run test:docs` passing
+- when `package.json.version` changes, add the matching `CHANGELOG.md` section and keep `npm run test:release` passing
 
 ## Source of Truth
 

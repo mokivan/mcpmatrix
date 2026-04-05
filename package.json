@@ -45,8 +45,9 @@
     "dev": "ts-node src/cli/index.ts",
     "lint": "eslint \"src/**/*.ts\" --ignore-pattern \"**/*.test.ts\"",
     "test:docs": "node scripts/verify-docs.mjs",
+    "test:release": "node scripts/verify-release-notes.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run && npm run test:docs",
+    "test": "vitest run && npm run test:docs && npm run test:release",
     "test:smoke": "node scripts/smoke.mjs",
     "pack:check": "node scripts/verify-package.mjs",
     "prepublishOnly": "npm run build && npm run lint && npm run typecheck && npm test && npm run test:smoke && npm run pack:check"

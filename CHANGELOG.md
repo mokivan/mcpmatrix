@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.2
+
+Backup rollback and documentation guardrail release.
+
+Included in `2.0.2`:
+
+- UTF-8 BOM handling centralized for YAML, TOML, and JSON config reads
+- new `backups list` and `rollback` CLI commands for inspecting and restoring versioned backups
+- transactional rollback support for restoring the latest backup globally or a selected backup per client
+- canonical specs expanded with backup and CLI surface documentation
+- automated documentation guard added to fail when CLI commands are not reflected in README and canonical specs
+- release smoke and operational docs updated to cover the new public command set
+
+Compatibility notes:
+
+- public binaries remain `mcpmatrix` and `mmx`
+- existing `init`, `import`, `validate`, `doctor`, `plan`, `apply`, and `tui` flows remain supported
+
 ## 2.0.1
 
 Release workflow fix for npm Trusted Publisher and GitHub release generation.

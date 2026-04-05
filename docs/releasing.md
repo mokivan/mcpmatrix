@@ -86,4 +86,5 @@ Also confirm:
 - docs match the clients and commands actually released in that version
 - `npm run test:docs` passes locally and in CI expectations
 - `CHANGELOG.md` reflects the released scope
+- `npm run test:release` passes for the exact `package.json.version`
 - Trusted Publisher is configured for `mokivan/mcpmatrix` with workflow filename `release.yml`
