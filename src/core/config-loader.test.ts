@@ -43,6 +43,21 @@ scopes:
     expect(config.scopes?.global?.enable).toEqual(["github"]);
   });
 
+  it("loads a valid config with a UTF-8 BOM", async () => {
+    const configPath = await writeConfig(`\uFEFFservers:
+  github:
+    command: npx
+scopes:
+  global:
+    enable:
+      - github
+`);
+
+    const config = await loadConfig(configPath);
+
+    expect(config.servers.github.command).toBe("npx");
+  });
+
   it("rejects invalid YAML with a file-specific error", async () => {
     const configPath = await writeConfig("servers: [\n");
 

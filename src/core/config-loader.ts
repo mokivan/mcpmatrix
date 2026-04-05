@@ -4,6 +4,7 @@ import YAML from "yaml";
 import type { McpMatrixConfig, RepoScopeConfig, ServerDefinition, TagScopeConfig } from "../types";
 import { writeFileAtomic } from "../utils/backup";
 import { getGlobalConfigPath } from "../utils/paths";
+import { readTextFile } from "../utils/text";
 
 const ENV_REFERENCE_PATTERN = /^\$\{env:[A-Z0-9_]+\}$/;
 
@@ -187,7 +188,7 @@ export async function loadConfig(configPath = getGlobalConfigPath()): Promise<Mc
     throw new Error(`Configuration file not found at ${configPath}. Run 'mcpmatrix init' first.`);
   }
 
-  const rawConfig = await fs.promises.readFile(configPath, "utf8");
+  const rawConfig = await readTextFile(configPath);
   let parsedConfig: unknown;
 
   try {

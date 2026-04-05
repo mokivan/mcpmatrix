@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { runApplyCommand } from "./commands/apply";
+import { runListBackupsCommand } from "./commands/backups";
 import { runDoctorCommand } from "./commands/doctor";
 import { runImportCommand } from "./commands/import";
 import { runInitCommand } from "./commands/init";
 import { runPlanCommand } from "./commands/plan";
+import { runRollbackCommand } from "./commands/rollback";
 import { runTuiCommand } from "./commands/tui";
 import { runValidateCommand } from "./commands/validate";
 import { logError } from "../utils/logger";
@@ -24,6 +26,18 @@ async function main(): Promise<void> {
     .description("Import existing client MCP configs into ~/.mcpmatrix/config.yml")
     .action(async () => {
       await runImportCommand();
+    });
+
+  const backupsCommand = program
+    .command("backups")
+    .description("Inspect versioned client config backups");
+
+  backupsCommand
+    .command("list")
+    .description("List detected backups under ~/.mcpmatrix/backups/")
+    .option("--client <client>", "Filter backups by client")
+    .action(async (options: { client?: "codex" | "claude" | "gemini" }) => {
+      await runListBackupsCommand(options);
     });
 
   program
@@ -55,6 +69,15 @@ async function main(): Promise<void> {
     .option("--repo <path>", "Override the detected repository path")
     .action(async (options: { repo?: string }) => {
       await runDoctorCommand(options);
+    });
+
+  program
+    .command("rollback")
+    .description("Restore the latest backup globally or for a single client")
+    .option("--client <client>", "Restore only one client config")
+    .option("--backup <backup>", "Restore a specific backup file by name or path")
+    .action(async (options: { client?: "codex" | "claude" | "gemini"; backup?: string }) => {
+      await runRollbackCommand(options);
     });
 
   program

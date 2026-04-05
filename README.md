@@ -80,6 +80,8 @@ mcpmatrix validate
 mcpmatrix doctor
 mcpmatrix plan
 mcpmatrix apply
+mcpmatrix backups list
+mcpmatrix rollback --client codex
 ```
 
 Optional interactive workflow:
@@ -191,6 +193,41 @@ Rollback behavior:
 - mcpmatrix restores all supported client files to their pre-apply state
 - a failed apply should never leave a mixed client state behind
 
+Compatibility note:
+
+- mcpmatrix tolerates UTF-8 BOM-prefixed YAML, TOML, and JSON config files when loading canonical config or importing/updating client configs
+
+### `mcpmatrix backups list [--client <codex|claude|gemini>]`
+
+Lists versioned backups stored in `~/.mcpmatrix/backups/`.
+
+Output includes:
+
+- client group
+- backup file name
+- inferred timestamp
+- full backup path
+
+If no backups exist, the command prints an empty-state message and exits successfully.
+
+### `mcpmatrix rollback [--client <codex|claude|gemini>] [--backup <name-or-path>]`
+
+Restores versioned backups into the live client config files.
+
+Behavior:
+
+- without flags, restores the latest backup for Codex, Claude, and Gemini
+- with `--client`, restores only the latest backup for that client
+- with `--backup`, restores a specific backup file by base name from `~/.mcpmatrix/backups/` or by absolute path
+- when `--backup` and `--client` are both provided, the backup must belong to that client
+
+Failure rules:
+
+- global rollback is strict: if any required client backup is missing, nothing is restored
+- single-client rollback fails when no backup exists for that client
+- an invalid or mismatched backup argument exits non-zero
+- rollback does not create a new backup entry for the restored files
+
 ### `mcpmatrix tui [--repo <path>]`
 
 Opens an interactive terminal UI for the detected repo. The TUI can:
@@ -265,6 +302,7 @@ Run checks:
 npm run lint
 npm run typecheck
 npm test
+npm run test:docs
 npm run test:smoke
 npm run pack:check
 ```
@@ -286,6 +324,8 @@ The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions,
 - `doctor` fails when a referenced env var is missing or a configured repo path no longer exists
 - `import` fails when `~/.mcpmatrix/config.yml` already exists or when the same server name has conflicting definitions across clients
 - `apply` failures should restore the previous client state; inspect the reported target path and backup files if the error persists
+- if a client config contains a UTF-8 BOM on Windows, mcpmatrix should still parse it correctly; if it does not, treat that as a bug
+- use `mcpmatrix backups list` to inspect available restore points before running `mcpmatrix rollback`
 
 ## Documentation Guard
 
@@ -296,6 +336,8 @@ Minimum README updates for that case:
 - supported clients
 - user-facing commands or setup changes
 - release and install instructions if package metadata changes
+- keep `docs/specs/spec-cli.md` aligned with the public CLI surface
+- keep `npm run test:docs` passing
 
 ## Source of Truth
 

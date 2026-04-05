@@ -2,6 +2,7 @@ import fs from "fs";
 import type { ResolvedServer } from "../../types";
 import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getGeminiConfigPath } from "../../utils/paths";
+import { readTextFile } from "../../utils/text";
 
 export type GeminiConfig = Record<string, unknown> & {
   mcpServers?: Record<
@@ -19,7 +20,7 @@ export async function readGeminiConfig(filePath = getGeminiConfigPath()): Promis
     return {};
   }
 
-  const rawContent = await fs.promises.readFile(filePath, "utf8");
+  const rawContent = await readTextFile(filePath);
 
   try {
     return JSON.parse(rawContent) as GeminiConfig;

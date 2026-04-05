@@ -49,9 +49,17 @@ scopes:
       "utf8",
     );
 
+    await fs.mkdir(path.join(tempHome, ".codex"), { recursive: true });
+    await fs.mkdir(path.join(tempHome, ".gemini"), { recursive: true });
+    await fs.writeFile(path.join(tempHome, ".codex", "config.toml"), 'model = "gpt-5"\n', "utf8");
+    await fs.writeFile(path.join(tempHome, ".claude.json"), '{\n  "theme": "dark"\n}\n', "utf8");
+    await fs.writeFile(path.join(tempHome, ".gemini", "settings.json"), '{\n  "theme": "light"\n}\n', "utf8");
+
     await runCli(["validate"], env);
     await runCli(["plan", "--repo", repoPath], env);
     await runCli(["apply", "--repo", repoPath], env);
+    await runCli(["backups", "list", "--client", "codex"], env);
+    await runCli(["rollback", "--client", "codex"], env);
 
     await fs.access(path.join(tempHome, ".codex", "config.toml"));
     await fs.access(path.join(tempHome, ".claude.json"));

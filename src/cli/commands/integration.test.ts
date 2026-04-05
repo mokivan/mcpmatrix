@@ -3,8 +3,10 @@ import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runApplyCommand } from "./apply";
+import { runListBackupsCommand } from "./backups";
 import { runInitCommand } from "./init";
 import { runPlanCommand } from "./plan";
+import { runRollbackCommand } from "./rollback";
 import { getBackupsDir } from "../../utils/paths";
 
 const tempDirs: string[] = [];
@@ -149,6 +151,79 @@ scopes:
     expect(backups.some((entry) => entry.startsWith("config-") && entry.endsWith(".toml"))).toBe(true);
     expect(backups.some((entry) => entry.startsWith("claude-") && entry.endsWith(".json"))).toBe(true);
     expect(backups.some((entry) => entry.startsWith("settings-") && entry.endsWith(".json"))).toBe(true);
+  });
+
+  it("applies config when Claude and Gemini JSON files contain a UTF-8 BOM", async () => {
+    const homeDir = await createTempHome();
+    const repoDir = await createRepoDir();
+    const codexPath = path.join(homeDir, ".codex", "config.toml");
+    const claudePath = path.join(homeDir, ".claude.json");
+    const geminiPath = path.join(homeDir, ".gemini", "settings.json");
+
+    await writeUserConfig(
+      homeDir,
+      `servers:
+  github:
+    command: node
+    args: ["--version"]
+scopes:
+  global:
+    enable:
+      - github
+`,
+    );
+
+    await fs.promises.mkdir(path.dirname(codexPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(geminiPath), { recursive: true });
+    await fs.promises.writeFile(codexPath, 'model = "gpt-5"\n', "utf8");
+    await fs.promises.writeFile(claudePath, `\uFEFF{"theme":"dark"}`, "utf8");
+    await fs.promises.writeFile(geminiPath, `\uFEFF{"theme":"light"}`, "utf8");
+
+    await runApplyCommand({ repo: repoDir });
+
+    const claudeContent = JSON.parse(await fs.promises.readFile(claudePath, "utf8")) as { mcpServers: Record<string, unknown> };
+    const geminiContent = JSON.parse(await fs.promises.readFile(geminiPath, "utf8")) as { mcpServers: Record<string, unknown> };
+
+    expect(Object.keys(claudeContent.mcpServers)).toEqual(["github"]);
+    expect(Object.keys(geminiContent.mcpServers)).toEqual(["github"]);
+  });
+
+  it("lists backups and rolls back the latest config for a single client", async () => {
+    const homeDir = await createTempHome();
+    const repoDir = await createRepoDir();
+    const codexPath = path.join(homeDir, ".codex", "config.toml");
+    const claudePath = path.join(homeDir, ".claude.json");
+    const geminiPath = path.join(homeDir, ".gemini", "settings.json");
+
+    await writeUserConfig(
+      homeDir,
+      `servers:
+  github:
+    command: node
+    args: ["--version"]
+scopes:
+  global:
+    enable:
+      - github
+`,
+    );
+
+    await fs.promises.mkdir(path.dirname(codexPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(geminiPath), { recursive: true });
+    await fs.promises.writeFile(codexPath, 'model = "gpt-5"\n', "utf8");
+    await fs.promises.writeFile(claudePath, '{\n  "theme": "dark"\n}\n', "utf8");
+    await fs.promises.writeFile(geminiPath, '{\n  "theme": "light"\n}\n', "utf8");
+
+    await runApplyCommand({ repo: repoDir });
+    await runListBackupsCommand({ client: "codex" });
+    expect(logSpy.mock.calls.flat().join("\n")).toContain("codex:");
+
+    await fs.promises.writeFile(codexPath, 'model = "gpt-5.4"\n', "utf8");
+    await runRollbackCommand({ client: "codex" });
+
+    expect(await fs.promises.readFile(codexPath, "utf8")).toContain('model = "gpt-5"');
+    expect(await fs.promises.readFile(claudePath, "utf8")).toContain('"github"');
+    expect(await fs.promises.readFile(geminiPath, "utf8")).toContain('"github"');
   });
 
   it("fails without mutating configs when Gemini JSON is invalid", async () => {

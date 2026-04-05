@@ -2,6 +2,7 @@ import fs from "fs";
 import type { ResolvedServer } from "../../types";
 import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getCodexConfigPath } from "../../utils/paths";
+import { readTextFile } from "../../utils/text";
 
 const START_MARKER = "# BEGIN MCPMATRIX MANAGED MCP SERVERS";
 const END_MARKER = "# END MCPMATRIX MANAGED MCP SERVERS";
@@ -72,7 +73,7 @@ export async function readCodexConfig(filePath = getCodexConfigPath()): Promise<
     return "";
   }
 
-  return fs.promises.readFile(filePath, "utf8");
+  return readTextFile(filePath);
 }
 
 export async function writeCodexConfig(servers: ResolvedServer[], filePath = getCodexConfigPath()): Promise<string | null> {

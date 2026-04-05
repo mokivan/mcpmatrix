@@ -49,6 +49,14 @@ export interface RepoDetectionResult {
 
 export type SupportedClient = "codex" | "claude" | "gemini";
 
+export interface BackupEntry {
+  client: SupportedClient;
+  filePath: string;
+  backupPath: string;
+  backupFileName: string;
+  timestamp: string;
+}
+
 export interface ImportedConfigSource {
   client: SupportedClient;
   filePath: string;
@@ -68,6 +76,16 @@ export interface ApplyTargetResult {
 export interface ApplyResult {
   targets: ApplyTargetResult[];
   rollbackPerformed: boolean;
+}
+
+export interface RollbackTarget {
+  client: SupportedClient;
+  filePath: string;
+  backupPath: string;
+}
+
+export interface RollbackResult {
+  targets: RollbackTarget[];
 }
 
 export interface CommandValidationResult {

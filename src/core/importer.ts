@@ -10,6 +10,7 @@ import {
   getGeminiConfigPath,
   getGlobalConfigPath,
 } from "../utils/paths";
+import { readTextFile } from "../utils/text";
 import { readClaudeConfig } from "../adapters/claude/writer";
 import { readGeminiConfig } from "../adapters/gemini/writer";
 
@@ -97,7 +98,7 @@ function mergeImportedServer(
 }
 
 async function importCodexServers(filePath: string): Promise<Record<string, ServerDefinition>> {
-  const rawContent = await fs.promises.readFile(filePath, "utf8");
+  const rawContent = await readTextFile(filePath);
   let parsed: CodexTomlConfig;
 
   try {

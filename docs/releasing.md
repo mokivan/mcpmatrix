@@ -32,8 +32,11 @@ Before merging the hardening or release PR:
    - `mcpmatrix init`
    - `mcpmatrix import`
    - `mcpmatrix validate`
+   - `mcpmatrix doctor`
    - `mcpmatrix plan`
    - `mcpmatrix apply`
+   - `mcpmatrix backups list`
+   - `mcpmatrix rollback --client codex`
 4. Codex, Claude, and Gemini must recognize the generated MCP configs
 
 ## Publish flow
@@ -71,6 +74,8 @@ mcpmatrix --help
 mcpmatrix --version
 mcpmatrix init
 mcpmatrix validate
+mcpmatrix doctor
+mcpmatrix backups list
 ```
 
 Also confirm:
@@ -79,5 +84,6 @@ Also confirm:
 - published package contains only runtime artifacts
 - package contract remains CLI-only (`mcpmatrix`, `mmx`, documented flags)
 - docs match the clients and commands actually released in that version
+- `npm run test:docs` passes locally and in CI expectations
 - `CHANGELOG.md` reflects the released scope
 - Trusted Publisher is configured for `mokivan/mcpmatrix` with workflow filename `release.yml`

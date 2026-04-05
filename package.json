@@ -1,6 +1,6 @@
 {
   "name": "@mokivan/mcpmatrix",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "license": "MIT",
   "description": "Define MCP servers once and generate configs for Codex, Claude Code, and Gemini from a canonical MCP configuration",
   "type": "commonjs",
@@ -44,8 +44,9 @@
     "build": "tsc",
     "dev": "ts-node src/cli/index.ts",
     "lint": "eslint \"src/**/*.ts\" --ignore-pattern \"**/*.test.ts\"",
+    "test:docs": "node scripts/verify-docs.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:docs",
     "test:smoke": "node scripts/smoke.mjs",
     "pack:check": "node scripts/verify-package.mjs",
     "prepublishOnly": "npm run build && npm run lint && npm run typecheck && npm test && npm run test:smoke && npm run pack:check"

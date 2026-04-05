@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createBackupIfExists, restoreFromBackupOrRemove, writeFileAtomic } from "./backup";
+import { createBackupIfExists, getLatestBackup, listBackups, resolveBackupSelection, restoreFromBackupOrRemove, writeFileAtomic } from "./backup";
 import { getBackupsDir } from "./paths";
 
 const tempPaths: string[] = [];
@@ -74,6 +74,33 @@ describe("createBackupIfExists", () => {
 
     const backups = (await fs.promises.readdir(getBackupsDir())).filter((entry) => entry.startsWith("config-"));
     expect(backups).toHaveLength(3);
+  });
+
+  it("lists backups grouped by client metadata and resolves the latest one", async () => {
+    await createTempHome();
+    const codexPath = await createTempFile("config.toml", "model = \"gpt-5\"\n");
+    const claudePath = await createTempFile(".claude.json", "{\n  \"mcpServers\": {}\n}\n");
+
+    const codexBackup = await createBackupIfExists(codexPath);
+    const claudeBackup = await createBackupIfExists(claudePath);
+    const backups = await listBackups();
+
+    expect(backups.map((entry) => entry.client).sort()).toEqual(["claude", "codex"]);
+    expect(backups.some((entry) => entry.backupPath === claudeBackup)).toBe(true);
+    expect(backups.some((entry) => entry.backupPath === codexBackup)).toBe(true);
+    expect((await getLatestBackup("codex"))?.backupPath).toBe(codexBackup);
+    expect((await getLatestBackup("claude"))?.backupPath).toBe(claudeBackup);
+  });
+
+  it("resolves a backup by file name inside the backups directory", async () => {
+    await createTempHome();
+    const configPath = await createTempFile("config.toml", "model = \"gpt-5\"\n");
+    const backupPath = await createBackupIfExists(configPath);
+
+    const resolved = await resolveBackupSelection(path.basename(backupPath ?? ""));
+
+    expect(resolved.client).toBe("codex");
+    expect(resolved.backupPath).toBe(backupPath);
   });
 
   it("writes files through a temp file and replaces the target content", async () => {

@@ -42,3 +42,10 @@ roadmap -> specification -> task -> code
 ## Documentation Guard
 
 When a change completes a roadmap phase or changes the set of supported clients, commands, or setup steps, update `README.md` in the same change.
+
+When the public CLI surface changes:
+
+- update `README.md`
+- update the relevant `docs/specs/spec-*.md` files
+- keep `docs/specs/spec-cli.md` aligned with the released command set
+- keep the automated documentation guard passing

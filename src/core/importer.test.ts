@@ -133,6 +133,33 @@ args = ["-y", "@modelcontextprotocol/server-github"]
     expect(imported.config.scopes?.global?.enable).toEqual(["github", "browser"]);
   });
 
+  it("imports JSON client configs with a UTF-8 BOM", async () => {
+    const homeDir = await createTempHome();
+
+    await fs.promises.writeFile(
+      path.join(homeDir, ".claude.json"),
+      `\uFEFF${JSON.stringify(
+        {
+          mcpServers: {
+            github: {
+              command: "node",
+              args: ["--version"],
+              env: {},
+            },
+          },
+        },
+        null,
+        2,
+      )}`,
+      "utf8",
+    );
+
+    const imported = await importExistingConfigs();
+
+    expect(imported.importedSources.map((source) => source.client)).toEqual(["claude"]);
+    expect(imported.config.servers.github.command).toBe("node");
+  });
+
   it("merges identical imported env maps regardless of key order", async () => {
     const homeDir = await createTempHome();
 
