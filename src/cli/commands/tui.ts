@@ -6,6 +6,7 @@ import { loadConfig, writeConfig } from "../../core/config-loader";
 import { runDoctor } from "../../core/doctor";
 import { detectRepoPath } from "../../core/repo-detector";
 import { resolveServers } from "../../core/resolver";
+import { describeServer } from "../../core/server-config";
 import type { McpMatrixConfig } from "../../types";
 import { getGlobalConfigPath } from "../../utils/paths";
 
@@ -89,7 +90,7 @@ function renderStatus(context: TuiContext): string {
   } else {
     for (const server of resolution.servers) {
       const source = repoEnabled.has(server.name) ? "repo" : "inherited";
-      lines.push(`- ${server.name} [${source}] -> ${server.command} ${server.args.join(" ")}`.trimEnd());
+      lines.push(`- ${source}: ${describeServer(server)}`);
     }
   }
 
@@ -120,7 +121,11 @@ async function inspectDoctorReport(options: { repo?: string } | undefined): Prom
   ];
 
   for (const check of report.serverChecks) {
-    lines.push(`- ${check.serverName}: command ${check.command.exists ? "ok" : "missing"}`);
+    if (check.runtime.transport === "stdio") {
+      lines.push(`- ${check.serverName}: stdio ${check.runtime.exists ? "ok" : "missing"}`);
+    } else {
+      lines.push(`- ${check.serverName}: remote ${check.runtime.valid ? "ok" : "invalid"}`);
+    }
     if (check.missingEnvVars.length > 0) {
       lines.push(`  missing env: ${check.missingEnvVars.join(", ")}`);
     }

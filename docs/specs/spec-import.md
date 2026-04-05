@@ -33,31 +33,45 @@ Codex MCP servers are read from:
 
 Legacy array-style `[[mcp_servers]]` entries may also be imported for backward compatibility.
 
-Each imported entry must provide:
+Each imported entry must provide exactly one transport:
 
-- `name`
-- `command`
-- optional `args`
-- optional `env`
+- `command` for canonical `transport: stdio`
+- `url` for canonical `transport: remote` with `protocol: auto`
 
-## Claude and Gemini Input
+## Claude Input
 
-Claude and Gemini MCP servers are read from:
+Claude MCP servers are read from:
 
 `mcpServers`
 
-Each imported entry must provide:
+Supported import shapes:
 
-- `command`
-- optional `args`
-- optional `env`
+- stdio: `type: "stdio"` or command-based entries with `command`
+- remote HTTP: `type: "http"` with `url`
+- remote SSE: `type: "sse"` with `url`
+
+Optional Claude remote fields:
+
+- `headers`
+- `auth`
+
+## Gemini Input
+
+Gemini MCP servers are read from:
+
+`mcpServers`
+
+Supported import shapes:
+
+- stdio: `command`
+- remote HTTP: `httpUrl`
 
 ## Conflict Rules
 
 If the same server name is detected in more than one client file:
 
-- import succeeds only when `command`, `args`, and `env` are identical
-- import fails when any of those values differ
+- import succeeds only when the normalized canonical definitions are identical
+- import fails when transport, protocol, url, command, args, env, headers, or auth differ
 
 ## Failure Conditions
 

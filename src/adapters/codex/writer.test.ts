@@ -5,11 +5,19 @@ import { ResolvedServer } from "../../types";
 const servers: ResolvedServer[] = [
   {
     name: "github",
+    transport: "stdio",
     command: "npx",
     args: ["-y", "@modelcontextprotocol/server-github"],
     env: {
       GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
     },
+  },
+  {
+    name: "medusa",
+    transport: "remote",
+    protocol: "auto",
+    url: "https://docs.medusajs.com/mcp",
+    headers: {},
   },
 ];
 
@@ -22,5 +30,21 @@ describe("codex writer", () => {
     const existingContent = 'model = "gpt-5"\n';
 
     expect(mergeCodexConfig(existingContent, servers)).toMatchSnapshot();
+  });
+
+  it("rejects remote servers that require unsupported codex metadata", () => {
+    expect(() =>
+      renderCodexManagedSection([
+        {
+          name: "sentry",
+          transport: "remote",
+          protocol: "http",
+          url: "https://mcp.sentry.dev/mcp",
+          headers: {
+            Authorization: "Bearer ${env:SENTRY_TOKEN}",
+          },
+        },
+      ]),
+    ).toThrow("Codex cannot represent");
   });
 });

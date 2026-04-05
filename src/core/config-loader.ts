@@ -1,16 +1,41 @@
 import fs from "fs";
 import path from "path";
 import YAML from "yaml";
-import type { McpMatrixConfig, RepoScopeConfig, ServerDefinition, TagScopeConfig } from "../types";
+import type {
+  McpMatrixConfig,
+  RemoteAuth,
+  RemoteProtocol,
+  RemoteServerDefinition,
+  RepoScopeConfig,
+  ServerDefinition,
+  StdioServerDefinition,
+  TagScopeConfig,
+} from "../types";
 import { writeFileAtomic } from "../utils/backup";
 import { getConfigSchemaUri, getGlobalConfigPath } from "../utils/paths";
 import { readTextFile } from "../utils/text";
 
-const ENV_REFERENCE_PATTERN = /^\$\{env:[A-Z0-9_]+\}$/;
+const ENV_REFERENCE_PATTERN = /\$\{env:[A-Z0-9_]+\}/g;
 
 function assertString(value: unknown, fieldName: string): string {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`Invalid ${fieldName}: expected non-empty string`);
+  }
+
+  const invalidMatch = value.match(/\$\{[^}]+\}/);
+  if (invalidMatch) {
+    const validRefs = value.match(ENV_REFERENCE_PATTERN) ?? [];
+    const invalidToken = invalidMatch[0] ?? "";
+    if (!validRefs.some((entry) => entry === invalidToken)) {
+      throw new Error(`Invalid ${fieldName}: env references must use the form \${env:VAR_NAME}`);
+    }
+  }
+
+  if (value.includes("${")) {
+    const stripped = value.replace(ENV_REFERENCE_PATTERN, "");
+    if (stripped.includes("${")) {
+      throw new Error(`Invalid ${fieldName}: env references must use the form \${env:VAR_NAME}`);
+    }
   }
 
   return value;
@@ -25,10 +50,10 @@ function parseStringArray(value: unknown, fieldName: string): string[] {
     throw new Error(`Invalid ${fieldName}: expected string[]`);
   }
 
-  return value as string[];
+  return value.map((entry, index) => assertString(entry, `${fieldName}[${index}]`));
 }
 
-function parseEnvMap(value: unknown, fieldName: string): Record<string, string> {
+function parseStringMap(value: unknown, fieldName: string): Record<string, string> {
   if (value === undefined) {
     return {};
   }
@@ -37,20 +62,99 @@ function parseEnvMap(value: unknown, fieldName: string): Record<string, string> 
     throw new Error(`Invalid ${fieldName}: expected object`);
   }
 
-  const envEntries = Object.entries(value);
   return Object.fromEntries(
-    envEntries.map(([envName, envValue]) => {
-      const parsedValue = assertString(envValue, `${fieldName}.${envName}`);
-
-      if (parsedValue.includes("${") && !ENV_REFERENCE_PATTERN.test(parsedValue)) {
-        throw new Error(
-          `Invalid ${fieldName}.${envName}: env references must use the form \${env:VAR_NAME}`,
-        );
-      }
-
-      return [envName, parsedValue];
-    }),
+    Object.entries(value).map(([key, entryValue]) => [key, assertString(entryValue, `${fieldName}.${key}`)]),
   );
+}
+
+function parseRemoteProtocol(value: unknown, fieldName: string): RemoteProtocol {
+  if (value !== "auto" && value !== "http" && value !== "sse") {
+    throw new Error(`Invalid ${fieldName}: expected one of auto, http, sse`);
+  }
+
+  return value;
+}
+
+function parseRemoteAuth(value: unknown, fieldName: string): RemoteAuth | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`Invalid ${fieldName}: expected object`);
+  }
+
+  const authObject = value as Record<string, unknown>;
+  const authType = assertString(authObject.type, `${fieldName}.type`);
+
+  if (authType === "none") {
+    return { type: "none" };
+  }
+
+  if (authType === "bearer") {
+    return {
+      type: "bearer",
+      token: assertString(authObject.token, `${fieldName}.token`),
+    };
+  }
+
+  if (authType === "oauth") {
+    const callbackPort = authObject.callbackPort;
+    if (callbackPort !== undefined && (!Number.isInteger(callbackPort) || (callbackPort as number) <= 0)) {
+      throw new Error(`Invalid ${fieldName}.callbackPort: expected positive integer`);
+    }
+
+    const oauthAuth: RemoteAuth = {
+      type: "oauth",
+      ...(authObject.clientId === undefined ? {} : { clientId: assertString(authObject.clientId, `${fieldName}.clientId`) }),
+      ...(authObject.clientSecret === undefined
+        ? {}
+        : { clientSecret: assertString(authObject.clientSecret, `${fieldName}.clientSecret`) }),
+      ...(callbackPort === undefined ? {} : { callbackPort: callbackPort as number }),
+      ...(authObject.metadataUrl === undefined
+        ? {}
+        : { metadataUrl: assertString(authObject.metadataUrl, `${fieldName}.metadataUrl`) }),
+    };
+
+    return oauthAuth;
+  }
+
+  throw new Error(`Invalid ${fieldName}.type: expected one of none, bearer, oauth`);
+}
+
+function parseStdioServerDefinition(
+  name: string,
+  serverValue: Record<string, unknown>,
+): StdioServerDefinition {
+  if ("url" in serverValue || "protocol" in serverValue || "headers" in serverValue || "auth" in serverValue) {
+    throw new Error(`Invalid servers.${name}: stdio servers must not define remote-only fields`);
+  }
+
+  return {
+    transport: "stdio",
+    command: assertString(serverValue.command, `servers.${name}.command`),
+    args: parseStringArray(serverValue.args, `servers.${name}.args`),
+    env: parseStringMap(serverValue.env, `servers.${name}.env`),
+  };
+}
+
+function parseRemoteServerDefinition(
+  name: string,
+  serverValue: Record<string, unknown>,
+): RemoteServerDefinition {
+  if ("command" in serverValue || "args" in serverValue || "env" in serverValue) {
+    throw new Error(`Invalid servers.${name}: remote servers must not define stdio-only fields`);
+  }
+
+  const auth = parseRemoteAuth(serverValue.auth, `servers.${name}.auth`);
+
+  return {
+    transport: "remote",
+    protocol: parseRemoteProtocol(serverValue.protocol, `servers.${name}.protocol`),
+    url: assertString(serverValue.url, `servers.${name}.url`),
+    headers: parseStringMap(serverValue.headers, `servers.${name}.headers`),
+    ...(auth === undefined ? {} : { auth }),
+  };
 }
 
 function parseServerDefinitions(value: unknown): Record<string, ServerDefinition> {
@@ -64,14 +168,18 @@ function parseServerDefinitions(value: unknown): Record<string, ServerDefinition
         throw new Error(`Invalid servers.${name}: expected object`);
       }
 
-      return [
-        name,
-        {
-          command: assertString((serverValue as { command?: unknown }).command, `servers.${name}.command`),
-          args: parseStringArray((serverValue as { args?: unknown }).args, `servers.${name}.args`),
-          env: parseEnvMap((serverValue as { env?: unknown }).env, `servers.${name}.env`),
-        },
-      ];
+      const serverObject = serverValue as Record<string, unknown>;
+      const transport = assertString(serverObject.transport, `servers.${name}.transport`);
+
+      if (transport === "stdio") {
+        return [name, parseStdioServerDefinition(name, serverObject)];
+      }
+
+      if (transport === "remote") {
+        return [name, parseRemoteServerDefinition(name, serverObject)];
+      }
+
+      throw new Error(`Invalid servers.${name}.transport: expected one of stdio, remote`);
     }),
   );
 }
@@ -206,6 +314,7 @@ export async function writeInitialConfig(configPath = getGlobalConfigPath()): Pr
 
 servers:
   github:
+    transport: stdio
     command: npx
     args: ["-y", "@modelcontextprotocol/server-github"]
     env:

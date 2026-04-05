@@ -46,9 +46,11 @@ describe("runDoctor", () => {
       configPath,
       `servers:
   github:
-    command: node
-    env:
-      GITHUB_TOKEN: \${env:GITHUB_TOKEN}
+    transport: remote
+    protocol: sse
+    url: https://example.com/mcp
+    headers:
+      Authorization: Bearer \${env:GITHUB_TOKEN}
 scopes:
   global:
     enable:
@@ -68,6 +70,7 @@ scopes:
 
     expect(report.serverChecks).toHaveLength(1);
     expect(report.serverChecks[0]?.missingEnvVars).toEqual(["GITHUB_TOKEN"]);
+    expect(report.serverChecks[0]?.compatibility.codex.supported).toBe(false);
     expect(report.repoChecks.some((check) => check.repoPath === missingRepo && !check.accessible)).toBe(true);
     expect(report.suggestedTags).toHaveLength(1);
     expect(report.suggestedTags[0]?.tag).toBe("node");

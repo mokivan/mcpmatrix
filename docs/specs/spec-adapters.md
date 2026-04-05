@@ -1,63 +1,91 @@
-# mcpmatrix Spec — Client Adapters
+# mcpmatrix Spec - Client Adapters
 
 Adapters convert the canonical mcpmatrix configuration into specific formats used by AI clients.
 
 ## Supported Clients
 
-### v0.1
-
 - Codex CLI
 - Claude Code CLI
-
-### v1
-
 - Gemini CLI
 
 ## Adapter Responsibilities
 
-1. map canonical server definition to client format
-2. preserve command, args, and env variables
-3. write configuration file to correct location
+1. map canonical server definitions to client format
+2. preserve supported transport metadata for each client
+3. reject unsupported target/client combinations before writing files
+4. write configuration files to the correct location
 
 ## Codex
 
 File:
 
-~/.codex/config.toml
+`~/.codex/config.toml`
 
-Format:
+Supported output:
 
+- stdio:
+
+```toml
 [mcp_servers."<server-name>"]
 command = "<command>"
 args = []
 env = {}
+```
+
+- remote:
+
+```toml
+[mcp_servers."<server-name>"]
+url = "https://example.com/mcp"
+```
+
+Codex adapter limitations:
+
+- remote `sse` is not representable
+- remote `headers` and persisted `auth` metadata are not representable
 
 ## Claude Code
 
 File:
 
-~/.claude.json
+`~/.claude.json`
 
 Section:
 
-mcpServers
+`mcpServers`
+
+Supported output:
+
+- stdio: `type: "stdio"` with `command`, `args`, and `env`
+- remote HTTP: `type: "http"` with `url`, optional `headers`, optional `auth`
+- remote SSE: `type: "sse"` with `url`, optional `headers`, optional `auth`
 
 ## Gemini
 
 File:
 
-~/.gemini/settings.json
+`~/.gemini/settings.json`
 
 Section:
 
-mcpServers
+`mcpServers`
+
+Supported output:
+
+- stdio: `command`, `args`, `env`
+- remote HTTP: `httpUrl`
+
+Gemini adapter limitations:
+
+- remote `sse` is not representable
+- remote `headers` and persisted `auth` metadata are not representable
 
 ## Adapter Contract
 
 Input:
 
-Resolved MCP server list
+Resolved canonical MCP server list
 
 Output:
 
-Client configuration file compatible with target client.
+Client configuration file compatible with the target client, or a clear incompatibility error before any writes occur.

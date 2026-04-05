@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0.3
+
+Canonical multi-transport MCP release.
+
+Included in `2.0.3`:
+
+- canonical config schema upgraded from command-only servers to explicit `stdio` and `remote` transports
+- Codex import/apply now supports URL-based remote MCP servers
+- Claude adapter/import now supports stdio, remote HTTP, and remote SSE MCP definitions
+- Gemini adapter/import now supports stdio and remote HTTP MCP definitions via `httpUrl`
+- `validate`, `doctor`, and `plan` now understand remote servers and report per-client compatibility
+- packaged JSON Schema, canonical specs, README, smoke coverage, and snapshots updated for the multi-transport model
+
+Compatibility notes:
+
+- Codex, Claude Code, and Gemini remain first-class supported clients
+- stdio MCP flows remain supported across all three clients
+- some remote metadata remains client-specific and may cause `apply` to fail early when a target cannot represent it exactly
+
 ## 2.0.2
 
 Backup rollback and documentation guardrail release.

@@ -1,8 +1,40 @@
-export interface ServerDefinition {
+export type RemoteProtocol = "auto" | "http" | "sse";
+
+export interface StdioServerDefinition {
+  transport: "stdio";
   command: string;
   args?: string[];
   env?: Record<string, string>;
 }
+
+export interface RemoteAuthNone {
+  type: "none";
+}
+
+export interface RemoteAuthBearer {
+  type: "bearer";
+  token: string;
+}
+
+export interface RemoteAuthOAuth {
+  type: "oauth";
+  clientId?: string;
+  clientSecret?: string;
+  callbackPort?: number;
+  metadataUrl?: string;
+}
+
+export type RemoteAuth = RemoteAuthNone | RemoteAuthBearer | RemoteAuthOAuth;
+
+export interface RemoteServerDefinition {
+  transport: "remote";
+  protocol: RemoteProtocol;
+  url: string;
+  headers?: Record<string, string>;
+  auth?: RemoteAuth;
+}
+
+export type ServerDefinition = StdioServerDefinition | RemoteServerDefinition;
 
 export interface GlobalScopeConfig {
   enable?: string[];
@@ -26,12 +58,7 @@ export interface McpMatrixConfig {
   };
 }
 
-export interface ResolvedServer {
-  name: string;
-  command: string;
-  args: string[];
-  env: Record<string, string>;
-}
+export type ResolvedServer = ({ name: string } & StdioServerDefinition) | ({ name: string } & RemoteServerDefinition);
 
 export interface ResolutionResult {
   repoPath: string;
@@ -88,16 +115,34 @@ export interface RollbackResult {
   targets: RollbackTarget[];
 }
 
-export interface CommandValidationResult {
+export interface StdioValidationResult {
+  transport: "stdio";
   command: string;
   exists: boolean;
   resolvedPath: string | null;
 }
 
+export interface RemoteValidationResult {
+  transport: "remote";
+  url: string;
+  protocol: RemoteProtocol;
+  valid: boolean;
+  issues: string[];
+}
+
+export type ServerTransportValidation = StdioValidationResult | RemoteValidationResult;
+
+export interface ClientCompatibilityCheck {
+  supported: boolean;
+  reason: string | null;
+}
+
 export interface ServerDoctorCheck {
   serverName: string;
-  command: CommandValidationResult;
+  transport: ServerDefinition["transport"];
+  runtime: ServerTransportValidation;
   missingEnvVars: string[];
+  compatibility: Record<SupportedClient, ClientCompatibilityCheck>;
 }
 
 export interface RepoAccessibilityCheck {

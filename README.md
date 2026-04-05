@@ -48,14 +48,16 @@ mcpmatrix init
 ```yaml
 servers:
   github:
+    transport: stdio
     command: npx
     args: ["-y", "@modelcontextprotocol/server-github"]
     env:
       GITHUB_TOKEN: ${env:GITHUB_TOKEN}
 
-  browser:
-    command: npx
-    args: ["-y", "@modelcontextprotocol/server-browser"]
+  medusa:
+    transport: remote
+    protocol: http
+    url: https://docs.medusajs.com/mcp
 
 scopes:
   global:
@@ -65,7 +67,7 @@ scopes:
   tags:
     ecommerce:
       enable:
-        - browser
+        - medusa
 
   repos:
     "/Users/ivan/dev/store":
@@ -110,7 +112,10 @@ Import rules:
 - import fails if `~/.mcpmatrix/config.yml` already exists
 - imported servers become `servers`
 - imported server names are enabled in `scopes.global.enable`
-- conflicting definitions for the same server name cause import to fail
+- Codex imports `command` as `transport: stdio` and `url` as `transport: remote`
+- Claude imports stdio, remote HTTP, and remote SSE entries
+- Gemini imports stdio and remote HTTP entries using `httpUrl`
+- conflicting canonical definitions for the same server name cause import to fail
 
 ## Commands
 
@@ -135,17 +140,20 @@ Validates:
 - YAML syntax
 - env reference syntax
 - scope references to defined servers
-- server commands available in PATH or by executable path
+- stdio commands available in PATH or by executable path
+- remote MCP URLs and auth structure
 
 ### `mcpmatrix doctor [--repo <path>]`
 
 Runs a fuller diagnostic pass:
 
 - MCP commands resolve locally
+- remote MCP URLs are structurally valid
 - referenced environment variables are defined
 - configured repo paths are accessible
 - the detected repo can be resolved and inspected
 - stack files suggest tags without modifying config automatically
+- compatibility is reported for Codex, Claude, and Gemini
 
 Suggested stack tags:
 
@@ -160,6 +168,7 @@ Resolves the active server set for the current repository and shows:
 - detected repo path
 - active tags
 - active servers
+- transport and per-client compatibility
 - files that would be updated
 - estimated diff size
 
@@ -184,6 +193,8 @@ Write behavior:
 - Codex updates only a managed `mcpmatrix` block inside `config.toml`, using named TOML tables under `mcp_servers`
 - Claude updates only the `mcpServers` section inside `.claude.json`
 - Gemini updates only the `mcpServers` section inside `settings.json`
+- stdio and supported remote transports are rendered per client format
+- `apply` fails before writing if any active server cannot be represented by Codex, Claude, or Gemini
 - existing content outside those managed areas is preserved
 - existing files are backed up before overwrite
 - `apply` is transactional across supported clients: either all targets are updated or the previous state is restored
@@ -267,10 +278,20 @@ Public schema:
 ```yaml
 servers:
   <server-name>:
+    transport: stdio
     command: string
     args: string[]
     env:
       <ENV_NAME>: string
+
+  <server-name>:
+    transport: remote
+    protocol: auto | http | sse
+    url: string
+    headers:
+      <HEADER_NAME>: string
+    auth:
+      type: none | bearer | oauth
 
 scopes:
   global:
@@ -289,10 +310,13 @@ scopes:
 Rules:
 
 - server names must be unique
+- `stdio` servers use `command`, `args`, and `env`
+- `remote` servers use `protocol`, `url`, `headers`, and `auth`
 - scopes are additive
 - resolution order is `global -> tags -> repo`
 - duplicate server names are removed while preserving first appearance
 - env references must use `${env:VAR_NAME}` when interpolation syntax is used
+- interpolation may appear in any string field
 - repo matching uses normalized absolute paths across Windows, Linux, and macOS
 
 ## Development
@@ -335,8 +359,10 @@ The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions,
 ## Troubleshooting
 
 - `validate` failing on a command usually means the executable is not available in local `PATH` or is not an executable file path
+- `validate` failing on a remote server usually means the `url`, `protocol`, or `auth` block is malformed
 - `doctor` fails when a referenced env var is missing or a configured repo path no longer exists
-- `import` fails when `~/.mcpmatrix/config.yml` already exists or when the same server name has conflicting definitions across clients
+- `doctor` also reports active servers that cannot be applied to Codex, Claude, or Gemini
+- `import` fails when `~/.mcpmatrix/config.yml` already exists or when the same server name has conflicting canonical definitions across clients
 - `apply` failures should restore the previous client state; inspect the reported target path and backup files if the error persists
 - if a client config contains a UTF-8 BOM on Windows, mcpmatrix should still parse it correctly; if it does not, treat that as a bug
 - use `mcpmatrix backups list` to inspect available restore points before running `mcpmatrix rollback`

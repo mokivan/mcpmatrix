@@ -3,17 +3,44 @@ import type { ResolvedServer } from "../../types";
 import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getGeminiConfigPath } from "../../utils/paths";
 import { readTextFile } from "../../utils/text";
+import { getClientCompatibility } from "../../core/server-config";
 
 export type GeminiConfig = Record<string, unknown> & {
   mcpServers?: Record<
     string,
-    {
-      command: string;
-      args: string[];
-      env: Record<string, string>;
-    }
+    | {
+        command: string;
+        args: string[];
+        env: Record<string, string>;
+      }
+    | {
+        httpUrl: string;
+      }
   >;
 };
+
+function assertGeminiSupported(server: ResolvedServer): void {
+  const compatibility = getClientCompatibility(server).gemini;
+  if (!compatibility.supported) {
+    throw new Error(`Gemini cannot represent server '${server.name}': ${compatibility.reason}`);
+  }
+}
+
+function toGeminiServer(server: ResolvedServer): { command: string; args: string[]; env: Record<string, string> } | { httpUrl: string } {
+  assertGeminiSupported(server);
+
+  if (server.transport === "stdio") {
+    return {
+      command: server.command,
+      args: server.args ?? [],
+      env: server.env ?? {},
+    };
+  }
+
+  return {
+    httpUrl: server.url,
+  };
+}
 
 export async function readGeminiConfig(filePath = getGeminiConfigPath()): Promise<GeminiConfig> {
   if (!fs.existsSync(filePath)) {
@@ -33,16 +60,7 @@ export async function readGeminiConfig(filePath = getGeminiConfigPath()): Promis
 export function renderGeminiConfig(existingConfig: GeminiConfig, servers: ResolvedServer[]): GeminiConfig {
   return {
     ...existingConfig,
-    mcpServers: Object.fromEntries(
-      servers.map((server) => [
-        server.name,
-        {
-          command: server.command,
-          args: server.args,
-          env: server.env,
-        },
-      ]),
-    ),
+    mcpServers: Object.fromEntries(servers.map((server) => [server.name, toGeminiServer(server)])),
   };
 }
 

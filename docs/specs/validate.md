@@ -9,5 +9,6 @@ Summary:
 - `mcpmatrix validate` checks canonical YAML structure and references
 - env syntax must use `${env:VAR_NAME}`
 - all referenced servers must exist in `servers`
-- commands must resolve from `PATH` or from an executable path
+- stdio commands must resolve from `PATH` or from an executable path
+- remote servers must have valid `http`/`https` URLs and valid auth shape
 - validation is static and local

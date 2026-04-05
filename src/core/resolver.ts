@@ -44,12 +44,26 @@ export function resolveServers(config: McpMatrixConfig, repoPath: string): Resol
       throw new Error(`Unknown server referenced by scopes: ${serverName}`);
     }
 
-    return {
+    if (serverDefinition.transport === "stdio") {
+      return {
+        name: serverName,
+        transport: "stdio",
+        command: serverDefinition.command,
+        args: serverDefinition.args ?? [],
+        env: serverDefinition.env ?? {},
+      };
+    }
+
+    const remoteServer: ResolvedServer = {
       name: serverName,
-      command: serverDefinition.command,
-      args: serverDefinition.args ?? [],
-      env: serverDefinition.env ?? {},
+      transport: "remote",
+      protocol: serverDefinition.protocol,
+      url: serverDefinition.url,
+      headers: serverDefinition.headers ?? {},
+      ...(serverDefinition.auth === undefined ? {} : { auth: serverDefinition.auth }),
     };
+
+    return remoteServer;
   });
 
   return {

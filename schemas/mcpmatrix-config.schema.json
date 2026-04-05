@@ -51,9 +51,20 @@
     }
   },
   "$defs": {
-    "envValue": {
+    "configString": {
       "type": "string",
-      "pattern": "^(\\$\\{env:[A-Z0-9_]+\\}|.*)$"
+      "minLength": 1
+    },
+    "stringMap": {
+      "type": "object",
+      "default": {},
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/configString"
+      }
     },
     "serverNameList": {
       "type": "array",
@@ -63,34 +74,110 @@
       },
       "default": []
     },
-    "serverDefinition": {
+    "remoteAuth": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "none"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "token"],
+          "properties": {
+            "type": {
+              "const": "bearer"
+            },
+            "token": {
+              "$ref": "#/$defs/configString"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "oauth"
+            },
+            "clientId": {
+              "$ref": "#/$defs/configString"
+            },
+            "clientSecret": {
+              "$ref": "#/$defs/configString"
+            },
+            "callbackPort": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "metadataUrl": {
+              "$ref": "#/$defs/configString"
+            }
+          }
+        }
+      ]
+    },
+    "stdioServerDefinition": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["command"],
+      "required": ["transport", "command"],
       "properties": {
+        "transport": {
+          "const": "stdio"
+        },
         "command": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/configString"
         },
         "args": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/configString"
           },
           "default": []
         },
         "env": {
-          "type": "object",
-          "default": {},
-          "propertyNames": {
-            "type": "string",
-            "minLength": 1
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/envValue"
-          }
+          "$ref": "#/$defs/stringMap"
         }
       }
+    },
+    "remoteServerDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transport", "protocol", "url"],
+      "properties": {
+        "transport": {
+          "const": "remote"
+        },
+        "protocol": {
+          "enum": ["auto", "http", "sse"]
+        },
+        "url": {
+          "$ref": "#/$defs/configString"
+        },
+        "headers": {
+          "$ref": "#/$defs/stringMap"
+        },
+        "auth": {
+          "$ref": "#/$defs/remoteAuth"
+        }
+      }
+    },
+    "serverDefinition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/stdioServerDefinition"
+        },
+        {
+          "$ref": "#/$defs/remoteServerDefinition"
+        }
+      ]
     },
     "globalScope": {
       "type": "object",

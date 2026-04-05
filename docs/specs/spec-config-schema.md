@@ -1,10 +1,10 @@
-# mcpmatrix Spec — Configuration Schema
+# mcpmatrix Spec - Configuration Schema
 
 ## File Location
 
 Global configuration file:
 
-~/.mcpmatrix/config.yml
+`~/.mcpmatrix/config.yml`
 
 ## Format
 
@@ -18,12 +18,23 @@ Packaged schema file:
 
 ## Top Level Structure
 
+```yaml
 servers:
   <server-name>:
+    transport: stdio
     command: string
     args: string[]
     env:
       <ENV_NAME>: string
+
+  <server-name>:
+    transport: remote
+    protocol: auto | http | sse
+    url: string
+    headers:
+      <HEADER_NAME>: string
+    auth:
+      type: none | bearer | oauth
 
 scopes:
   global:
@@ -37,30 +48,39 @@ scopes:
     <absolute-path>:
       tags: string[]
       enable: string[]
+```
 
 ## Rules
 
 1. server names must be unique
-2. command must be executable in system PATH
-3. env variables may reference environment variables using:
-
-${env:VAR_NAME}
-
-4. scopes are additive
-5. no implicit disabling of servers
+2. `transport: stdio` requires `command` and may define only `args` and `env`
+3. `transport: remote` requires `protocol` and `url` and may define only `headers` and `auth`
+4. env interpolation syntax is `${env:VAR_NAME}`
+5. interpolation may appear in any string field in the canonical config
+6. scopes are additive
+7. no implicit disabling of servers
 
 ## Example
 
+```yaml
 # yaml-language-server: $schema=file:///.../schemas/mcpmatrix-config.schema.json
 
 servers:
   github:
+    transport: stdio
     command: npx
     args: ["-y", "@modelcontextprotocol/server-github"]
     env:
       GITHUB_TOKEN: ${env:GITHUB_TOKEN}
 
+  medusa:
+    transport: remote
+    protocol: http
+    url: https://docs.medusajs.com/mcp
+
 scopes:
   global:
     enable:
       - github
+      - medusa
+```
