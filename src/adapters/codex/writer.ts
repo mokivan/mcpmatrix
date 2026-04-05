@@ -10,6 +10,10 @@ function escapeTomlString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
+function formatTomlKey(value: string): string {
+  return `"${escapeTomlString(value)}"`;
+}
+
 function formatArray(values: string[]): string {
   return `[${values.map((value) => `"${escapeTomlString(value)}"`).join(", ")}]`;
 }
@@ -27,8 +31,7 @@ export function renderCodexManagedSection(servers: ResolvedServer[]): string {
   const lines = [START_MARKER];
 
   for (const server of servers) {
-    lines.push("[[mcp_servers]]");
-    lines.push(`name = "${escapeTomlString(server.name)}"`);
+    lines.push(`[mcp_servers.${formatTomlKey(server.name)}]`);
     lines.push(`command = "${escapeTomlString(server.command)}"`);
     lines.push(`args = ${formatArray(server.args)}`);
     lines.push(`env = ${formatEnvTable(server.env)}`);

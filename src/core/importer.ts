@@ -26,6 +26,10 @@ type CodexTomlServer = {
   env?: unknown;
 };
 
+type CodexTomlConfig = {
+  mcp_servers?: CodexTomlServer[] | Record<string, CodexTomlServer>;
+};
+
 function normalizeServerDefinition(server: ServerDefinition): string {
   const env = Object.fromEntries(Object.entries(server.env ?? {}).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey)));
 
@@ -94,33 +98,50 @@ function mergeImportedServer(
 
 async function importCodexServers(filePath: string): Promise<Record<string, ServerDefinition>> {
   const rawContent = await fs.promises.readFile(filePath, "utf8");
-  let parsed: { mcp_servers?: CodexTomlServer[] };
+  let parsed: CodexTomlConfig;
 
   try {
-    parsed = TOML.parse(rawContent) as { mcp_servers?: CodexTomlServer[] };
+    parsed = TOML.parse(rawContent) as CodexTomlConfig;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Invalid TOML in Codex config ${filePath}: ${message}`);
   }
 
   const servers = parsed.mcp_servers;
-  if (!Array.isArray(servers)) {
+  if (servers === undefined) {
     return {};
   }
 
-  return Object.fromEntries(
-    servers.map((server, index) => {
-      const name = assertString(server.name, `codex.mcp_servers[${index}].name`);
+  if (Array.isArray(servers)) {
+    return Object.fromEntries(
+      servers.map((server, index) => {
+        const name = assertString(server.name, `codex.mcp_servers[${index}].name`);
 
-      return [
-        name,
-        {
-          command: assertString(server.command, `codex.mcp_servers[${index}].command`),
-          args: parseArgs(server.args, `codex.mcp_servers[${index}].args`),
-          env: parseEnv(server.env, `codex.mcp_servers[${index}].env`),
-        },
-      ];
-    }),
+        return [
+          name,
+          {
+            command: assertString(server.command, `codex.mcp_servers[${index}].command`),
+            args: parseArgs(server.args, `codex.mcp_servers[${index}].args`),
+            env: parseEnv(server.env, `codex.mcp_servers[${index}].env`),
+          },
+        ];
+      }),
+    );
+  }
+
+  if (typeof servers !== "object" || servers === null) {
+    throw new Error(`Invalid imported codex.mcp_servers: expected object or array`);
+  }
+
+  return Object.fromEntries(
+    Object.entries(servers).map(([name, server]) => [
+      name,
+      {
+        command: assertString(server.command, `codex.mcp_servers.${name}.command`),
+        args: parseArgs(server.args, `codex.mcp_servers.${name}.args`),
+        env: parseEnv(server.env, `codex.mcp_servers.${name}.env`),
+      },
+    ]),
   );
 }
 

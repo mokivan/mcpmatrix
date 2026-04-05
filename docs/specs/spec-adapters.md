@@ -27,8 +27,7 @@ File:
 
 Format:
 
-[[mcp_servers]]
-name = "<server-name>"
+[mcp_servers."<server-name>"]
 command = "<command>"
 args = []
 env = {}

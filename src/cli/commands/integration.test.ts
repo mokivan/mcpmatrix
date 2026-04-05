@@ -139,7 +139,7 @@ scopes:
     };
 
     expect(codexContent).toContain('model = "gpt-5"');
-    expect(codexContent).toContain("[[mcp_servers]]");
+    expect(codexContent).toContain("[mcp_servers.\"github\"]");
     expect(claudeContent.theme).toBe("dark");
     expect(Object.keys(claudeContent.mcpServers)).toEqual(["github"]);
     expect(geminiContent.theme).toBe("light");

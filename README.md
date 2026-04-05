@@ -146,7 +146,7 @@ Client outputs:
 
 Write behavior:
 
-- Codex updates only a managed `mcpmatrix` block inside `config.toml`
+- Codex updates only a managed `mcpmatrix` block inside `config.toml`, using named TOML tables under `mcp_servers`
 - Claude updates only the `mcpServers` section inside `.claude.json`
 - Gemini updates only the `mcpServers` section inside `settings.json`
 - existing content outside those managed areas is preserved

@@ -29,7 +29,9 @@ Generated structure:
 
 Codex MCP servers are read from:
 
-`[[mcp_servers]]`
+`[mcp_servers.<name>]`
+
+Legacy array-style `[[mcp_servers]]` entries may also be imported for backward compatibility.
 
 Each imported entry must provide:
 

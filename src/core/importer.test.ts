@@ -40,8 +40,7 @@ describe("importer", () => {
     await fs.promises.mkdir(path.join(homeDir, ".codex"), { recursive: true });
     await fs.promises.writeFile(
       path.join(homeDir, ".codex", "config.toml"),
-      `[[mcp_servers]]
-name = "github"
+      `[mcp_servers.github]
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
 env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
@@ -60,6 +59,29 @@ env = { GITHUB_TOKEN = "\${env:GITHUB_TOKEN}" }
       },
     });
     expect(imported.config.scopes?.global?.enable).toEqual(["github"]);
+  });
+
+  it("imports legacy array-based codex servers for backward compatibility", async () => {
+    const homeDir = await createTempHome();
+
+    await fs.promises.mkdir(path.join(homeDir, ".codex"), { recursive: true });
+    await fs.promises.writeFile(
+      path.join(homeDir, ".codex", "config.toml"),
+      `[[mcp_servers]]
+name = "github"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+`,
+      "utf8",
+    );
+
+    const imported = await importExistingConfigs();
+
+    expect(imported.config.servers.github).toEqual({
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-github"],
+      env: {},
+    });
   });
 
   it("imports servers from claude and gemini configs", async () => {
