@@ -17,6 +17,10 @@ Creates the initial canonical config file.
 
 Imports supported client MCP configs into the canonical YAML file.
 
+### `mcpmatrix schema`
+
+Prints the local packaged JSON Schema path and file URI for editor integration.
+
 ### `mcpmatrix backups list [--client <codex|claude|gemini>]`
 
 Lists versioned backups from `~/.mcpmatrix/backups/`.

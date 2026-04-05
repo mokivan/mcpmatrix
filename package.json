@@ -1,6 +1,6 @@
 {
   "name": "@mokivan/mcpmatrix",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "license": "MIT",
   "description": "Define MCP servers once and generate configs for Codex, Claude Code, and Gemini from a canonical MCP configuration",
   "type": "commonjs",
@@ -34,6 +34,7 @@
   },
   "files": [
     "dist",
+    "schemas",
     "README.md",
     "LICENSE"
   ],

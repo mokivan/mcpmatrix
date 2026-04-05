@@ -7,6 +7,7 @@ import { runImportCommand } from "./commands/import";
 import { runInitCommand } from "./commands/init";
 import { runPlanCommand } from "./commands/plan";
 import { runRollbackCommand } from "./commands/rollback";
+import { runSchemaCommand } from "./commands/schema";
 import { runTuiCommand } from "./commands/tui";
 import { runValidateCommand } from "./commands/validate";
 import { logError } from "../utils/logger";
@@ -26,6 +27,13 @@ async function main(): Promise<void> {
     .description("Import existing client MCP configs into ~/.mcpmatrix/config.yml")
     .action(async () => {
       await runImportCommand();
+    });
+
+  program
+    .command("schema")
+    .description("Print the local JSON Schema path and URI for ~/.mcpmatrix/config.yml")
+    .action(() => {
+      runSchemaCommand();
     });
 
   const backupsCommand = program

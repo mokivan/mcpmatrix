@@ -10,6 +10,12 @@ Global configuration file:
 
 YAML
 
+Editors may attach a JSON Schema to this YAML file for autocomplete and validation assistance.
+
+Packaged schema file:
+
+`schemas/mcpmatrix-config.schema.json`
+
 ## Top Level Structure
 
 servers:
@@ -44,6 +50,8 @@ ${env:VAR_NAME}
 5. no implicit disabling of servers
 
 ## Example
+
+# yaml-language-server: $schema=file:///.../schemas/mcpmatrix-config.schema.json
 
 servers:
   github:

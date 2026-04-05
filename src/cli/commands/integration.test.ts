@@ -7,6 +7,7 @@ import { runListBackupsCommand } from "./backups";
 import { runInitCommand } from "./init";
 import { runPlanCommand } from "./plan";
 import { runRollbackCommand } from "./rollback";
+import { runSchemaCommand } from "./schema";
 import { getBackupsDir } from "../../utils/paths";
 
 const tempDirs: string[] = [];
@@ -70,6 +71,16 @@ describe("CLI command integration", () => {
     const configPath = path.join(homeDir, ".mcpmatrix", "config.yml");
     expect(fs.existsSync(configPath)).toBe(true);
     expect(await fs.promises.readFile(configPath, "utf8")).toContain("servers:");
+    expect(await fs.promises.readFile(configPath, "utf8")).toContain("# yaml-language-server: $schema=file:///");
+  });
+
+  it("prints the local schema path and URI", async () => {
+    await runSchemaCommand();
+
+    const output = logSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("Schema path:");
+    expect(output).toContain("Schema URI:");
+    expect(output).toContain("mcpmatrix-config.schema.json");
   });
 
   it("plans active servers and target files for an unconfigured repo", async () => {

@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mokivan.github.io/mcpmatrix/schemas/mcpmatrix-config.schema.json",
+  "title": "mcpmatrix Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["servers", "scopes"],
+  "properties": {
+    "servers": {
+      "type": "object",
+      "description": "Canonical MCP server definitions keyed by server name.",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/serverDefinition"
+      }
+    },
+    "scopes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["global", "tags", "repos"],
+      "properties": {
+        "global": {
+          "$ref": "#/$defs/globalScope"
+        },
+        "tags": {
+          "type": "object",
+          "default": {},
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/tagScope"
+          }
+        },
+        "repos": {
+          "type": "object",
+          "default": {},
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/repoScope"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "envValue": {
+      "type": "string",
+      "pattern": "^(\\$\\{env:[A-Z0-9_]+\\}|.*)$"
+    },
+    "serverNameList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": []
+    },
+    "serverDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "env": {
+          "type": "object",
+          "default": {},
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/envValue"
+          }
+        }
+      }
+    },
+    "globalScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "$ref": "#/$defs/serverNameList"
+        }
+      },
+      "default": {
+        "enable": []
+      }
+    },
+    "tagScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "$ref": "#/$defs/serverNameList"
+        }
+      },
+      "default": {
+        "enable": []
+      }
+    },
+    "repoScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "enable": {
+          "$ref": "#/$defs/serverNameList"
+        }
+      },
+      "default": {
+        "tags": [],
+        "enable": []
+      }
+    }
+  }
+}

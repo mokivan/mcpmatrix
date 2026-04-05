@@ -78,6 +78,7 @@ scopes:
 ```bash
 mcpmatrix validate
 mcpmatrix doctor
+mcpmatrix schema
 mcpmatrix plan
 mcpmatrix apply
 mcpmatrix backups list
@@ -120,6 +121,12 @@ Creates the initial config file at `~/.mcpmatrix/config.yml`.
 ### `mcpmatrix import`
 
 Imports existing MCP client configs into the canonical YAML file.
+
+### `mcpmatrix schema`
+
+Prints the packaged JSON Schema path and `file://` URI for `~/.mcpmatrix/config.yml`.
+
+This is useful when your editor does not automatically pick up the schema header or when you want to configure schema association manually.
 
 ### `mcpmatrix validate`
 
@@ -248,6 +255,12 @@ Global config location:
 ```text
 ~/.mcpmatrix/config.yml
 ```
+
+Autocomplete support:
+
+- `mcpmatrix init` writes a `yaml-language-server` schema header into the generated config file
+- `mcpmatrix schema` prints the packaged schema path and URI for manual editor setup
+- packaged schema file: `schemas/mcpmatrix-config.schema.json`
 
 Public schema:
 

@@ -29,6 +29,8 @@ async function main() {
       throw new Error(`Unexpected CLI version: ${versionOutput.trim()}`);
     }
 
+    await runCli(["schema"], env);
+
     await runCli(["init"], env);
 
     const configPath = path.join(tempHome, ".mcpmatrix", "config.yml");

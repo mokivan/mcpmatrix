@@ -3,7 +3,7 @@ import path from "path";
 import YAML from "yaml";
 import type { McpMatrixConfig, RepoScopeConfig, ServerDefinition, TagScopeConfig } from "../types";
 import { writeFileAtomic } from "../utils/backup";
-import { getGlobalConfigPath } from "../utils/paths";
+import { getConfigSchemaUri, getGlobalConfigPath } from "../utils/paths";
 import { readTextFile } from "../utils/text";
 
 const ENV_REFERENCE_PATTERN = /^\$\{env:[A-Z0-9_]+\}$/;
@@ -202,7 +202,9 @@ export async function loadConfig(configPath = getGlobalConfigPath()): Promise<Mc
 }
 
 export async function writeInitialConfig(configPath = getGlobalConfigPath()): Promise<void> {
-  const initialConfig = `servers:
+  const initialConfig = `# yaml-language-server: $schema=${getConfigSchemaUri()}
+
+servers:
   github:
     command: npx
     args: ["-y", "@modelcontextprotocol/server-github"]

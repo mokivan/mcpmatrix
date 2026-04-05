@@ -37,7 +37,7 @@ function main() {
     Array.isArray(packResult.files) ? packResult.files.map((entry) => entry.path).filter((entry) => typeof entry === "string") : [],
   );
 
-  for (const requiredPath of ["LICENSE", "README.md", "package.json", "dist/cli/index.js"]) {
+  for (const requiredPath of ["LICENSE", "README.md", "package.json", "dist/cli/index.js", "schemas/mcpmatrix-config.schema.json"]) {
     if (!filePaths.has(requiredPath)) {
       fail(`missing expected tarball entry: ${requiredPath}`);
     }

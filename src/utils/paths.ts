@@ -1,5 +1,6 @@
 import os from "os";
 import path from "path";
+import { pathToFileURL } from "url";
 
 export function getHomeDir(): string {
   return os.homedir();
@@ -11,6 +12,14 @@ export function getMcpMatrixDir(): string {
 
 export function getGlobalConfigPath(): string {
   return path.join(getMcpMatrixDir(), "config.yml");
+}
+
+export function getConfigSchemaPath(): string {
+  return path.resolve(__dirname, "..", "..", "schemas", "mcpmatrix-config.schema.json");
+}
+
+export function getConfigSchemaUri(): string {
+  return pathToFileURL(getConfigSchemaPath()).href;
 }
 
 export function getBackupsDir(): string {

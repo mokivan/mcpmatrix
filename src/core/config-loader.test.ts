@@ -58,6 +58,18 @@ scopes:
     expect(config.servers.github.command).toBe("npx");
   });
 
+  it("writes an initial config with a yaml-language-server schema header", async () => {
+    const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mcpmatrix-config-"));
+    const configPath = path.join(tempDir, "config.yml");
+    tempDirs.push(tempDir);
+
+    const { writeInitialConfig } = await import("./config-loader");
+    await writeInitialConfig(configPath);
+
+    const contents = await fs.promises.readFile(configPath, "utf8");
+    expect(contents.startsWith("# yaml-language-server: $schema=file:///")).toBe(true);
+  });
+
   it("rejects invalid YAML with a file-specific error", async () => {
     const configPath = await writeConfig("servers: [\n");
 
