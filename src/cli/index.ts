@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { runApplyCommand } from "./commands/apply";
+import { runDoctorCommand } from "./commands/doctor";
 import { runImportCommand } from "./commands/import";
 import { runInitCommand } from "./commands/init";
 import { runPlanCommand } from "./commands/plan";
+import { runTuiCommand } from "./commands/tui";
 import { runValidateCommand } from "./commands/validate";
 import { logError } from "../utils/logger";
 import { getPackageVersion } from "../utils/package-metadata";
@@ -45,6 +47,22 @@ async function main(): Promise<void> {
     .description("Validate ~/.mcpmatrix/config.yml and referenced MCP commands")
     .action(async () => {
       await runValidateCommand();
+    });
+
+  program
+    .command("doctor")
+    .description("Run diagnostics for MCP commands, env vars, config consistency, and repos")
+    .option("--repo <path>", "Override the detected repository path")
+    .action(async (options: { repo?: string }) => {
+      await runDoctorCommand(options);
+    });
+
+  program
+    .command("tui")
+    .description("Open the interactive terminal UI")
+    .option("--repo <path>", "Override the detected repository path")
+    .action(async (options: { repo?: string }) => {
+      await runTuiCommand(options);
     });
 
   await program.parseAsync(process.argv);

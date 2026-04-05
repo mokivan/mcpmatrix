@@ -8,5 +8,6 @@ export async function runValidateCommand(): Promise<void> {
   const config = await loadConfig(configPath);
   validateExecutableCommands(config);
 
+  logInfo(`Validated ${Object.keys(config.servers).length} server definition(s).`);
   logInfo(`Configuration valid: ${configPath}`);
 }

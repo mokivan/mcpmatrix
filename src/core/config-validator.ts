@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
-import type { McpMatrixConfig } from "../types";
+import type { CommandValidationResult, McpMatrixConfig, ServerDefinition, ServerDoctorCheck } from "../types";
+
+const ENV_REFERENCE_PATTERN = /^\$\{env:([A-Z0-9_]+)\}$/;
 
 function hasPathSeparator(command: string): boolean {
   return command.includes("/") || command.includes("\\");
@@ -50,28 +52,68 @@ function resolveCommandFromPath(command: string, pathValue = process.env.PATH ??
   return null;
 }
 
-export function commandExists(command: string): boolean {
+export function resolveCommand(command: string): string | null {
   if (hasPathSeparator(command) || path.isAbsolute(command)) {
     const resolvedPath = path.resolve(command);
 
     if (!isExecutableFile(resolvedPath)) {
-      return false;
+      return null;
     }
 
     if (process.platform === "win32") {
-      return hasWindowsExecutableExtension(resolvedPath);
+      return hasWindowsExecutableExtension(resolvedPath) ? resolvedPath : null;
     }
 
-    return hasExecutePermission(resolvedPath);
+    return hasExecutePermission(resolvedPath) ? resolvedPath : null;
   }
 
-  return resolveCommandFromPath(command) !== null;
+  return resolveCommandFromPath(command);
+}
+
+export function commandExists(command: string): boolean {
+  return resolveCommand(command) !== null;
+}
+
+export function getCommandValidation(command: string): CommandValidationResult {
+  const resolvedPath = resolveCommand(command);
+
+  return {
+    command,
+    exists: resolvedPath !== null,
+    resolvedPath,
+  };
+}
+
+export function getReferencedEnvVar(value: string): string | null {
+  const match = value.match(ENV_REFERENCE_PATTERN);
+  return match?.[1] ?? null;
+}
+
+export function getMissingEnvVars(server: ServerDefinition): string[] {
+  const missingVars = new Set<string>();
+
+  for (const envValue of Object.values(server.env ?? {})) {
+    const envVarName = getReferencedEnvVar(envValue);
+    if (envVarName && !process.env[envVarName]) {
+      missingVars.add(envVarName);
+    }
+  }
+
+  return [...missingVars];
+}
+
+export function getServerDoctorChecks(config: McpMatrixConfig): ServerDoctorCheck[] {
+  return Object.entries(config.servers).map(([serverName, server]) => ({
+    serverName,
+    command: getCommandValidation(server.command),
+    missingEnvVars: getMissingEnvVars(server),
+  }));
 }
 
 export function validateExecutableCommands(config: McpMatrixConfig): void {
-  for (const [serverName, server] of Object.entries(config.servers)) {
-    if (!commandExists(server.command)) {
-      throw new Error(`Command not found for servers.${serverName}.command: ${server.command}`);
+  for (const check of getServerDoctorChecks(config)) {
+    if (!check.command.exists) {
+      throw new Error(`Command not found for servers.${check.serverName}.command: ${check.command.command}`);
     }
   }
 }
