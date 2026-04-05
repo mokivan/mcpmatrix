@@ -1,4 +1,4 @@
-import terminalKit = require("terminal-kit");
+import { terminal as defaultTerminal } from "terminal-kit";
 import {
   assertInteractiveTerminal,
   buildTuiContext,
@@ -29,7 +29,7 @@ interface TuiCommandDeps {
   editConfigAndReload: typeof editConfigAndReload;
   loadDoctorViewModel: typeof loadDoctorViewModel;
   toggleRepoServerSelection: typeof toggleRepoServerSelection;
-  terminal: typeof terminalKit.terminal;
+  terminal: typeof defaultTerminal;
 }
 
 const defaultDeps: TuiCommandDeps = {
@@ -38,7 +38,7 @@ const defaultDeps: TuiCommandDeps = {
   editConfigAndReload,
   loadDoctorViewModel,
   toggleRepoServerSelection,
-  terminal: terminalKit.terminal,
+  terminal: defaultTerminal,
 };
 
 function truncateText(value: string, width: number): string {
@@ -149,7 +149,7 @@ function createStatusMessage(tone: TuiSeverity, text: string): TuiStatusMessage 
   return { tone, text };
 }
 
-function renderHeader(term: typeof terminalKit.terminal, context: TuiContext, width: number): void {
+function renderHeader(term: typeof defaultTerminal, context: TuiContext, width: number): void {
   term.moveTo(1, 1);
   term.bold.brightWhite(truncateText("mcpmatrix TUI", width));
   term.moveTo(1, 2);
@@ -164,7 +164,7 @@ function renderHeader(term: typeof terminalKit.terminal, context: TuiContext, wi
 }
 
 function renderListPanel(
-  term: typeof terminalKit.terminal,
+  term: typeof defaultTerminal,
   rows: readonly TuiServerRow[],
   state: TuiState,
   leftWidth: number,
@@ -216,7 +216,7 @@ function renderListPanel(
 }
 
 function renderDetailPanel(
-  term: typeof terminalKit.terminal,
+  term: typeof defaultTerminal,
   selectedRow: TuiServerRow | null,
   context: TuiContext,
   x: number,
@@ -255,7 +255,7 @@ function renderDetailPanel(
 }
 
 function renderDoctorView(
-  term: typeof terminalKit.terminal,
+  term: typeof defaultTerminal,
   doctorView: DoctorViewModel | null,
   width: number,
   height: number,
@@ -334,7 +334,7 @@ function renderDoctorView(
   }
 }
 
-function renderFooter(term: typeof terminalKit.terminal, state: TuiState, width: number, height: number): void {
+function renderFooter(term: typeof defaultTerminal, state: TuiState, width: number, height: number): void {
   term.moveTo(1, height - 1);
   term.brightBlack(
     truncateText(
@@ -376,7 +376,7 @@ function renderFooter(term: typeof terminalKit.terminal, state: TuiState, width:
 }
 
 function renderApp(
-  term: typeof terminalKit.terminal,
+  term: typeof defaultTerminal,
   context: TuiContext,
   state: TuiState,
   doctorView: DoctorViewModel | null,
@@ -406,7 +406,7 @@ function renderApp(
   renderFooter(term, state, width, height);
 }
 
-async function promptForFilter(term: typeof terminalKit.terminal, currentFilter: string): Promise<string | null> {
+async function promptForFilter(term: typeof defaultTerminal, currentFilter: string): Promise<string | null> {
   term.moveTo(1, term.height);
   term.eraseLine();
   term.bold.white(`/ Filter (${currentFilter || "empty"}): `);
