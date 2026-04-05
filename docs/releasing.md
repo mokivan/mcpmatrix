@@ -14,10 +14,13 @@ Required configuration:
 - npm package linked to the `mokivan/mcpmatrix` repository
 - workflow file: `release.yml`
 - GitHub workflow permission `id-token: write`
+- Node.js `22.14.0` or newer in the publish job
+- npm CLI `11.5.1` or newer in the publish job
 
 ## Runtime baseline
 
-- Node.js 20 or newer
+- Node.js 22.14.0 or newer
+- npm 11.5.1 or newer
 
 ## Merge gate for the release PR
 
@@ -54,6 +57,7 @@ When it runs, it:
 8. runs `npm run test:smoke`
 9. runs `npm run pack:check`
 10. publishes to npm as a public package using Trusted Publisher
+   - provenance is generated automatically by npm for public packages published from public GitHub repositories
 11. creates tag `v<version>`
 12. creates a GitHub Release from the exact `CHANGELOG.md` section matching `package.json.version`
 
