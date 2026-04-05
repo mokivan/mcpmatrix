@@ -228,3 +228,14 @@ scopes:
   await fs.promises.mkdir(path.dirname(configPath), { recursive: true });
   await writeFileAtomic(configPath, initialConfig);
 }
+
+export async function writeConfig(config: McpMatrixConfig, configPath = getGlobalConfigPath()): Promise<void> {
+  await fs.promises.mkdir(path.dirname(configPath), { recursive: true });
+  await writeFileAtomic(
+    configPath,
+    YAML.stringify(config, {
+      lineWidth: 0,
+      minContentWidth: 0,
+    }),
+  );
+}

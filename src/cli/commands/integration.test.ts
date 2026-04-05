@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runApplyCommand } from "./apply";
 import { runInitCommand } from "./init";
 import { runPlanCommand } from "./plan";
+import { getBackupsDir } from "../../utils/paths";
 
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
@@ -144,9 +145,10 @@ scopes:
     expect(Object.keys(claudeContent.mcpServers)).toEqual(["github"]);
     expect(geminiContent.theme).toBe("light");
     expect(Object.keys(geminiContent.mcpServers)).toEqual(["github"]);
-    expect(fs.existsSync(`${codexPath}.bak`)).toBe(true);
-    expect(fs.existsSync(`${claudePath}.bak`)).toBe(true);
-    expect(fs.existsSync(`${geminiPath}.bak`)).toBe(true);
+    const backups = await fs.promises.readdir(getBackupsDir());
+    expect(backups.some((entry) => entry.startsWith("config-") && entry.endsWith(".toml"))).toBe(true);
+    expect(backups.some((entry) => entry.startsWith("claude-") && entry.endsWith(".json"))).toBe(true);
+    expect(backups.some((entry) => entry.startsWith("settings-") && entry.endsWith(".json"))).toBe(true);
   });
 
   it("fails without mutating configs when Gemini JSON is invalid", async () => {
@@ -177,7 +179,7 @@ scopes:
 
     await expect(runApplyCommand({ repo: repoDir })).rejects.toThrow("Invalid JSON in Gemini config");
     expect(await fs.promises.readFile(codexPath, "utf8")).toBe(originalCodex);
-    expect(fs.existsSync(`${codexPath}.bak`)).toBe(false);
+    await expect(fs.promises.access(getBackupsDir())).rejects.toThrow();
   });
 
   it("imports existing configs into the canonical YAML", async () => {

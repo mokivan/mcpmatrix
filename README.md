@@ -9,6 +9,9 @@ This version supports:
 - Gemini CLI
 - config import from existing client files
 - explicit config validation
+- `doctor` diagnostics
+- interactive TUI
+- versioned backups with retention
 
 ## Install
 
@@ -74,8 +77,15 @@ scopes:
 
 ```bash
 mcpmatrix validate
+mcpmatrix doctor
 mcpmatrix plan
 mcpmatrix apply
+```
+
+Optional interactive workflow:
+
+```bash
+mcpmatrix tui
 ```
 
 ## Import Existing Configs
@@ -118,6 +128,22 @@ Validates:
 - scope references to defined servers
 - server commands available in PATH or by executable path
 
+### `mcpmatrix doctor [--repo <path>]`
+
+Runs a fuller diagnostic pass:
+
+- MCP commands resolve locally
+- referenced environment variables are defined
+- configured repo paths are accessible
+- the detected repo can be resolved and inspected
+- stack files suggest tags without modifying config automatically
+
+Suggested stack tags:
+
+- `package.json` -> `node`
+- `pom.xml` -> `java`
+- `.csproj` -> `dotnet`
+
 ### `mcpmatrix plan [--repo <path>]`
 
 Resolves the active server set for the current repository and shows:
@@ -155,15 +181,28 @@ Write behavior:
 
 Backup files:
 
-- `~/.codex/config.toml.bak`
-- `~/.claude.json.bak`
-- `~/.gemini/settings.json.bak`
+- stored in `~/.mcpmatrix/backups/`
+- filenames are versioned by target, for example `config-YYYY-MM-DD-HH-MM.toml`
+- latest 3 backups are retained per target
 
 Rollback behavior:
 
 - if any target write fails, `mcpmatrix apply` exits non-zero
 - mcpmatrix restores all supported client files to their pre-apply state
 - a failed apply should never leave a mixed client state behind
+
+### `mcpmatrix tui [--repo <path>]`
+
+Opens an interactive terminal UI for the detected repo. The TUI can:
+
+- visualize active MCP servers
+- inspect repo status and `doctor` output
+- open `~/.mcpmatrix/config.yml` in `$EDITOR`
+- enable or disable repo-local MCPs in `scopes.repos.<repo>.enable`
+
+Current limitation from the canonical schema:
+
+- inherited servers from `global` or `tags` are visible in the TUI but cannot be disabled there, because scope merging is additive only
 
 ## Configuration
 
@@ -244,6 +283,7 @@ The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions,
 ## Troubleshooting
 
 - `validate` failing on a command usually means the executable is not available in local `PATH` or is not an executable file path
+- `doctor` fails when a referenced env var is missing or a configured repo path no longer exists
 - `import` fails when `~/.mcpmatrix/config.yml` already exists or when the same server name has conflicting definitions across clients
 - `apply` failures should restore the previous client state; inspect the reported target path and backup files if the error persists
 
