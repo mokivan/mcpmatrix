@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0.3
+
+Interactive TUI refresh release.
+
+Included in `2.0.3`:
+
+- `mcpmatrix tui` moved from a prompt loop to a full-screen terminal UI powered by `terminal-kit`
+- keyboard navigation added for selection, filtering, doctor inspection, refresh, and editor round-trips
+- repo-local MCP toggles now update in place and reload the canonical config after each change
+- doctor output is rendered as a structured TUI view instead of a raw text dump
+- TUI-focused unit tests added for server classification, toggle rules, doctor formatting, and non-interactive terminal failures
+- README and canonical CLI docs updated to document the richer TUI flow
+
+Compatibility notes:
+
+- public CLI surface remains unchanged
+- resolver behavior and additive scope rules are unchanged
+- inherited MCPs from `global` or `tags` remain visible but locked in the TUI
+
 ## 2.0.2
 
 Backup rollback and documentation guardrail release.

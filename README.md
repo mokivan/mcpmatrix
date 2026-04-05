@@ -244,6 +244,16 @@ Opens an interactive terminal UI for the detected repo. The TUI can:
 - open `~/.mcpmatrix/config.yml` in `$EDITOR`
 - enable or disable repo-local MCPs in `scopes.repos.<repo>.enable`
 
+Keyboard shortcuts:
+
+- `↑` / `↓` move the selection
+- `Enter` or `Space` toggles the selected repo-local MCP
+- `/` filters the server list by name
+- `d` opens the structured `doctor` report
+- `e` opens the canonical config in `$EDITOR` and reloads on exit
+- `r` refreshes repo detection and resolved server state
+- `q` or `Esc` exits the current view or closes the TUI
+
 Current limitation from the canonical schema:
 
 - inherited servers from `global` or `tags` are visible in the TUI but cannot be disabled there, because scope merging is additive only

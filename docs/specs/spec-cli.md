@@ -47,7 +47,7 @@ Restores the latest or selected versioned backup into live client config files.
 
 ### `mcpmatrix tui [--repo <path>]`
 
-Opens the interactive terminal UI.
+Opens the interactive terminal UI with keyboard navigation for inspecting doctor status, editing config, and toggling repo-local MCP servers.
 
 ## Documentation guard
 
