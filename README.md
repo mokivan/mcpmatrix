@@ -371,6 +371,10 @@ npm run test:smoke
 npm run pack:check
 ```
 
+Contributor guide:
+
+- adding a new supported client: [`docs/adding-supported-client.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/adding-supported-client.md)
+
 ## Release
 
 The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions, either after merges to `master` or from a manual run of the `Release` workflow. The workflow is guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
