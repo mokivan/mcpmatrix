@@ -61,7 +61,8 @@ async function main(): Promise<void> {
     .command("apply")
     .description("Resolve active MCP servers and update client config files")
     .option("--repo <path>", "Override the detected repository path")
-    .action(async (options: { repo?: string }) => {
+    .option("--clients <selection>", "Target clients: all, auto, or a comma-separated list")
+    .action(async (options: { repo?: string; clients?: string }) => {
       await runApplyCommand(options);
     });
 

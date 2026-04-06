@@ -3,6 +3,7 @@ import { readCodexConfig, mergeCodexConfig } from "../adapters/codex/writer";
 import { readGeminiConfig, renderGeminiConfig } from "../adapters/gemini/writer";
 import type { ApplyResult, ApplyTargetResult, ResolutionResult, ResolvedServer, SupportedClient } from "../types";
 import { createBackupIfExists, restoreFromBackupOrRemove, writeFileAtomic } from "../utils/backup";
+import { SUPPORTED_CLIENTS } from "./client-selection";
 import {
   getClaudeConfigPath,
   getCodexConfigPath,
@@ -74,7 +75,7 @@ async function prepareTarget(target: PreparedTargetInput): Promise<PreparedTarge
   };
 }
 
-async function prepareTargets(resolution: ResolutionResult): Promise<PreparedTarget[]> {
+async function prepareTargets(resolution: ResolutionResult, clients: SupportedClient[]): Promise<PreparedTarget[]> {
   const targets: PreparedTargetInput[] = [
     {
       client: "codex",
@@ -122,11 +123,15 @@ async function prepareTargets(resolution: ResolutionResult): Promise<PreparedTar
     );
   }
 
-  return Promise.all(targets.map((target) => prepareTarget(target)));
+  return Promise.all(targets.filter((target) => clients.includes(target.client)).map((target) => prepareTarget(target)));
 }
 
-export async function applyResolvedServers(resolution: ResolutionResult): Promise<ApplyResult> {
-  const preparedTargets = await prepareTargets(resolution);
+export async function applyResolvedServers(
+  resolution: ResolutionResult,
+  options?: { clients?: SupportedClient[] },
+): Promise<ApplyResult> {
+  const selectedClients = options?.clients ?? SUPPORTED_CLIENTS;
+  const preparedTargets = await prepareTargets(resolution, selectedClients);
 
   for (const target of preparedTargets) {
     target.backupPath = await createBackupIfExists(target.filePath, {

@@ -83,6 +83,7 @@ mcpmatrix doctor
 mcpmatrix schema
 mcpmatrix plan
 mcpmatrix apply
+mcpmatrix apply --clients auto
 mcpmatrix backups list
 mcpmatrix rollback --client codex
 ```
@@ -179,7 +180,7 @@ Repository detection order:
 2. search upward for `.git`
 3. current working directory
 
-### `mcpmatrix apply [--repo <path>]`
+### `mcpmatrix apply [--repo <path>] [--clients <all|auto|client1,client2,...>]`
 
 Resolves the same server set and writes client configs.
 
@@ -194,6 +195,9 @@ Client outputs:
 
 Write behavior:
 
+- by default, `apply` targets all supported clients
+- `--clients auto` targets only clients with an existing managed config file or a detected CLI command in `PATH`
+- `--clients codex,claude` targets only the named clients
 - global scope writes only servers resolved from `scopes.global.enable`
 - repo scope writes only servers resolved from the matched repo's `tags` and `enable`, excluding names already active globally
 - Codex updates only a managed `mcpmatrix` block inside each `config.toml`, using named TOML tables under `mcp_servers`

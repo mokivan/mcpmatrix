@@ -149,4 +149,43 @@ describe("applyResolvedServers", () => {
     expect(mocks.restoreFromBackupOrRemove).toHaveBeenNthCalledWith(5, "/repo/.mcp.json", "/repo/.mcp.json.bak");
     expect(mocks.restoreFromBackupOrRemove).toHaveBeenNthCalledWith(6, "/repo/.gemini/settings.json", "/repo/.gemini/settings.json.bak");
   });
+
+  it("writes only the selected clients when apply options narrow the target set", async () => {
+    const result = await applyResolvedServers(
+      {
+        repoPath: "/repo",
+        matchedRepo: true,
+        warnings: [],
+        tags: ["medusajs"],
+        globalServers: [githubServer],
+        repoScopedServers: [medusaServer],
+        servers: [githubServer, medusaServer],
+      },
+      { clients: ["claude"] },
+    );
+
+    expect(mocks.createBackupIfExists).toHaveBeenCalledTimes(2);
+    expect(mocks.writeFileAtomic).toHaveBeenCalledTimes(2);
+    expect(result.targets.map((target) => `${target.client}:${target.scope}`)).toEqual(["claude:global", "claude:repo"]);
+  });
+
+  it("does not read configs for clients outside the selected target set", async () => {
+    mocks.readGeminiConfig.mockRejectedValue(new Error("should not read gemini"));
+
+    const result = await applyResolvedServers(
+      {
+        repoPath: "/repo",
+        matchedRepo: true,
+        warnings: [],
+        tags: ["medusajs"],
+        globalServers: [githubServer],
+        repoScopedServers: [medusaServer],
+        servers: [githubServer, medusaServer],
+      },
+      { clients: ["codex"] },
+    );
+
+    expect(mocks.readGeminiConfig).not.toHaveBeenCalled();
+    expect(result.targets.map((target) => `${target.client}:${target.scope}`)).toEqual(["codex:global", "codex:repo"]);
+  });
 });

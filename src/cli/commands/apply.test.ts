@@ -98,4 +98,13 @@ describe("runApplyCommand", () => {
     await expect(runApplyCommand()).rejects.toThrow("Unexpected token");
     expect(mocks.applyResolvedServers).toHaveBeenCalled();
   });
+
+  it("passes explicit client selection to applyResolvedServers", async () => {
+    await runApplyCommand({ clients: "codex,gemini" });
+
+    expect(mocks.applyResolvedServers).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ clients: ["codex", "gemini"] }),
+    );
+  });
 });

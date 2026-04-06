@@ -29,7 +29,7 @@ Lists versioned backups from `~/.mcpmatrix/backups/`.
 
 Shows the resolved MCP server set and planned config updates.
 
-### `mcpmatrix apply [--repo <path>]`
+### `mcpmatrix apply [--repo <path>] [--clients <all|auto|client1,client2,...>]`
 
 Writes resolved MCP config into supported client config files.
 
