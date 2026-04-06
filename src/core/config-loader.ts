@@ -162,26 +162,26 @@ function parseServerDefinitions(value: unknown): Record<string, ServerDefinition
     throw new Error("Invalid servers: expected object");
   }
 
-  return Object.fromEntries(
-    Object.entries(value).map(([name, serverValue]) => {
-      if (typeof serverValue !== "object" || serverValue === null || Array.isArray(serverValue)) {
-        throw new Error(`Invalid servers.${name}: expected object`);
-      }
+  const entries: Array<[string, ServerDefinition]> = Object.entries(value).map(([name, serverValue]) => {
+    if (typeof serverValue !== "object" || serverValue === null || Array.isArray(serverValue)) {
+      throw new Error(`Invalid servers.${name}: expected object`);
+    }
 
-      const serverObject = serverValue as Record<string, unknown>;
-      const transport = assertString(serverObject.transport, `servers.${name}.transport`);
+    const serverObject = serverValue as Record<string, unknown>;
+    const transport = assertString(serverObject.transport, `servers.${name}.transport`);
 
-      if (transport === "stdio") {
-        return [name, parseStdioServerDefinition(name, serverObject)];
-      }
+    if (transport === "stdio") {
+      return [name, parseStdioServerDefinition(name, serverObject)];
+    }
 
-      if (transport === "remote") {
-        return [name, parseRemoteServerDefinition(name, serverObject)];
-      }
+    if (transport === "remote") {
+      return [name, parseRemoteServerDefinition(name, serverObject)];
+    }
 
-      throw new Error(`Invalid servers.${name}.transport: expected one of stdio, remote`);
-    }),
-  );
+    throw new Error(`Invalid servers.${name}.transport: expected one of stdio, remote`);
+  });
+
+  return Object.fromEntries(entries);
 }
 
 function parseTagScopes(value: unknown): Record<string, TagScopeConfig> {
