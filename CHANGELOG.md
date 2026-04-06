@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0.4
+
+Scoped MCP persistence fix for global and repo-level client configs.
+
+Included in `2.0.4`:
+
+- resolver now partitions active MCPs into `global` and `repo-scoped` sets while preserving deterministic active ordering
+- `apply` now writes global and project-level config files for Codex, Claude Code, and Gemini instead of promoting repo MCPs to user-global config
+- Codex project config now targets `.codex/config.toml`, Claude project config now targets `.mcp.json`, and Gemini project config now targets `.gemini/settings.json`
+- backup storage now tracks exact target metadata, supports separate global and repo-scoped restore points, and adds `--repo` support to `backups list` and `rollback`
+- Codex managed block merging now cleans up previously broken orphan markers from older malformed writes
+- README, canonical specs, integration coverage, and rollback tests updated to document and verify scoped behavior across all supported clients
+
+Compatibility notes:
+
+- Codex, Claude Code, and Gemini all retain user-global MCP support
+- repo-scoped MCPs are now persisted only in project-level client config files when a repo matches `scopes.repos`
+- rollback remains transactional within the selected scope
+
 ## 2.0.3
 
 Canonical multi-transport MCP release with interactive TUI refresh.

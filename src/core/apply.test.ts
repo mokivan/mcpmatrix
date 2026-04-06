@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   getCodexConfigPath: vi.fn(),
   getClaudeConfigPath: vi.fn(),
   getGeminiConfigPath: vi.fn(),
+  getRepoCodexConfigPath: vi.fn(),
+  getRepoClaudeConfigPath: vi.fn(),
+  getRepoGeminiConfigPath: vi.fn(),
 }));
 
 vi.mock("../adapters/codex/writer", () => ({
@@ -40,9 +43,28 @@ vi.mock("../utils/paths", () => ({
   getCodexConfigPath: mocks.getCodexConfigPath,
   getClaudeConfigPath: mocks.getClaudeConfigPath,
   getGeminiConfigPath: mocks.getGeminiConfigPath,
+  getRepoCodexConfigPath: mocks.getRepoCodexConfigPath,
+  getRepoClaudeConfigPath: mocks.getRepoClaudeConfigPath,
+  getRepoGeminiConfigPath: mocks.getRepoGeminiConfigPath,
 }));
 
 import { applyResolvedServers } from "./apply";
+
+const githubServer = {
+  name: "github",
+  transport: "stdio" as const,
+  command: "npx",
+  args: ["-y", "@modelcontextprotocol/server-github"],
+  env: {},
+};
+
+const medusaServer = {
+  name: "medusajs",
+  transport: "remote" as const,
+  protocol: "http" as const,
+  url: "https://docs.medusajs.com/mcp",
+  headers: {},
+};
 
 describe("applyResolvedServers", () => {
   beforeEach(() => {
@@ -51,6 +73,9 @@ describe("applyResolvedServers", () => {
     mocks.getCodexConfigPath.mockReturnValue("/tmp/codex.toml");
     mocks.getClaudeConfigPath.mockReturnValue("/tmp/claude.json");
     mocks.getGeminiConfigPath.mockReturnValue("/tmp/gemini.json");
+    mocks.getRepoCodexConfigPath.mockReturnValue("/repo/.codex/config.toml");
+    mocks.getRepoClaudeConfigPath.mockReturnValue("/repo/.mcp.json");
+    mocks.getRepoGeminiConfigPath.mockReturnValue("/repo/.gemini/settings.json");
 
     mocks.readCodexConfig.mockResolvedValue("model = \"gpt-5\"\n");
     mocks.readClaudeConfig.mockResolvedValue({ theme: "dark" });
@@ -63,25 +88,35 @@ describe("applyResolvedServers", () => {
     mocks.createBackupIfExists
       .mockResolvedValueOnce("/tmp/codex.toml.bak")
       .mockResolvedValueOnce("/tmp/claude.json.bak")
-      .mockResolvedValueOnce("/tmp/gemini.json.bak");
+      .mockResolvedValueOnce("/tmp/gemini.json.bak")
+      .mockResolvedValueOnce("/repo/.codex/config.toml.bak")
+      .mockResolvedValueOnce("/repo/.mcp.json.bak")
+      .mockResolvedValueOnce("/repo/.gemini/settings.json.bak");
     mocks.writeFileAtomic.mockResolvedValue(undefined);
     mocks.restoreFromBackupOrRemove.mockResolvedValue(undefined);
   });
 
-  it("writes all targets after preparing backups", async () => {
-    const result = await applyResolvedServers([
-      {
-        name: "github",
-        transport: "stdio",
-        command: "npx",
-        args: ["-y", "@modelcontextprotocol/server-github"],
-        env: {},
-      },
-    ]);
+  it("writes global and repo targets after preparing backups", async () => {
+    const result = await applyResolvedServers({
+      repoPath: "/repo",
+      matchedRepo: true,
+      warnings: [],
+      tags: ["medusajs"],
+      globalServers: [githubServer],
+      repoScopedServers: [medusaServer],
+      servers: [githubServer, medusaServer],
+    });
 
-    expect(mocks.createBackupIfExists).toHaveBeenCalledTimes(3);
-    expect(mocks.writeFileAtomic).toHaveBeenCalledTimes(3);
-    expect(result.targets.map((target) => target.client)).toEqual(["codex", "claude", "gemini"]);
+    expect(mocks.createBackupIfExists).toHaveBeenCalledTimes(6);
+    expect(mocks.writeFileAtomic).toHaveBeenCalledTimes(6);
+    expect(result.targets.map((target) => `${target.client}:${target.scope}`)).toEqual([
+      "codex:global",
+      "claude:global",
+      "gemini:global",
+      "codex:repo",
+      "claude:repo",
+      "gemini:repo",
+    ]);
     expect(result.rollbackPerformed).toBe(false);
   });
 
@@ -89,23 +124,29 @@ describe("applyResolvedServers", () => {
     mocks.writeFileAtomic
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error("disk full"));
 
     await expect(
-      applyResolvedServers([
-        {
-          name: "github",
-          transport: "stdio",
-          command: "npx",
-          args: ["-y", "@modelcontextprotocol/server-github"],
-          env: {},
-        },
-      ]),
+      applyResolvedServers({
+        repoPath: "/repo",
+        matchedRepo: true,
+        warnings: [],
+        tags: ["medusajs"],
+        globalServers: [githubServer],
+        repoScopedServers: [medusaServer],
+        servers: [githubServer, medusaServer],
+      }),
     ).rejects.toThrow("apply: failed to update gemini config; restored previous state.");
 
-    expect(mocks.restoreFromBackupOrRemove).toHaveBeenCalledTimes(3);
+    expect(mocks.restoreFromBackupOrRemove).toHaveBeenCalledTimes(6);
     expect(mocks.restoreFromBackupOrRemove).toHaveBeenNthCalledWith(1, "/tmp/codex.toml", "/tmp/codex.toml.bak");
     expect(mocks.restoreFromBackupOrRemove).toHaveBeenNthCalledWith(2, "/tmp/claude.json", "/tmp/claude.json.bak");
     expect(mocks.restoreFromBackupOrRemove).toHaveBeenNthCalledWith(3, "/tmp/gemini.json", "/tmp/gemini.json.bak");
+    expect(mocks.restoreFromBackupOrRemove).toHaveBeenNthCalledWith(4, "/repo/.codex/config.toml", "/repo/.codex/config.toml.bak");
+    expect(mocks.restoreFromBackupOrRemove).toHaveBeenNthCalledWith(5, "/repo/.mcp.json", "/repo/.mcp.json.bak");
+    expect(mocks.restoreFromBackupOrRemove).toHaveBeenNthCalledWith(6, "/repo/.gemini/settings.json", "/repo/.gemini/settings.json.bak");
   });
 });

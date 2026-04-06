@@ -15,11 +15,14 @@ export async function runApplyCommand(options?: { repo?: string }): Promise<void
     logWarn(warning);
   }
 
-  const result = await applyResolvedServers(resolution.servers);
+  const result = await applyResolvedServers(resolution);
 
-  logInfo(`Applied ${resolution.servers.length} MCP server(s) for repo: ${resolution.repoPath}`);
+  logInfo(
+    `Applied ${resolution.servers.length} active MCP server(s) for repo: ${resolution.repoPath} (${resolution.globalServers.length} global, ${resolution.repoScopedServers.length} repo-scoped)`,
+  );
   for (const target of result.targets) {
-    logInfo(`Updated: ${target.filePath}`);
+    const scopeLabel = target.scope === "repo" ? `repo ${target.repoPath}` : "global";
+    logInfo(`Updated [${scopeLabel}]: ${target.filePath}`);
     if (target.backupPath) {
       logInfo(`Backup: ${target.backupPath}`);
     }

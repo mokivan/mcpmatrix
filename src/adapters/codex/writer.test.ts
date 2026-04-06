@@ -32,6 +32,17 @@ describe("codex writer", () => {
     expect(mergeCodexConfig(existingContent, servers)).toMatchSnapshot();
   });
 
+  it("removes orphaned mcpmatrix markers from previously broken content", () => {
+    const startMarker = "# BEGIN MCPMATRIX MANAGED MCP SERVERS";
+    const endMarker = "# END MCPMATRIX MANAGED MCP SERVERS";
+    const existingContent = `model = "gpt-5"\n${endMarker}\n\n${startMarker}\n[mcp_servers."stale"]\nurl = "https://stale.example.com/mcp"\n\n${endMarker}\n`;
+
+    expect(mergeCodexConfig(existingContent, servers)).toContain('model = "gpt-5"');
+    expect(mergeCodexConfig(existingContent, servers).match(/# BEGIN MCPMATRIX MANAGED MCP SERVERS/g)).toHaveLength(1);
+    expect(mergeCodexConfig(existingContent, servers).match(/# END MCPMATRIX MANAGED MCP SERVERS/g)).toHaveLength(1);
+    expect(mergeCodexConfig(existingContent, servers)).not.toContain('[mcp_servers."stale"]');
+  });
+
   it("rejects remote servers that require unsupported codex metadata", () => {
     expect(() =>
       renderCodexManagedSection([

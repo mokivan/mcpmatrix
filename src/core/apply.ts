@@ -1,12 +1,27 @@
 import { readClaudeConfig, renderClaudeConfig } from "../adapters/claude/writer";
 import { readCodexConfig, mergeCodexConfig } from "../adapters/codex/writer";
 import { readGeminiConfig, renderGeminiConfig } from "../adapters/gemini/writer";
-import type { ApplyResult, ApplyTargetResult, ResolvedServer, SupportedClient } from "../types";
+import type { ApplyResult, ApplyTargetResult, ResolutionResult, ResolvedServer, SupportedClient } from "../types";
 import { createBackupIfExists, restoreFromBackupOrRemove, writeFileAtomic } from "../utils/backup";
-import { getClaudeConfigPath, getCodexConfigPath, getGeminiConfigPath } from "../utils/paths";
+import {
+  getClaudeConfigPath,
+  getCodexConfigPath,
+  getGeminiConfigPath,
+  getRepoClaudeConfigPath,
+  getRepoCodexConfigPath,
+  getRepoGeminiConfigPath,
+} from "../utils/paths";
 
 type PreparedTarget = ApplyTargetResult & {
   nextContent: string;
+};
+
+type PreparedTargetInput = {
+  client: SupportedClient;
+  scope: ApplyTargetResult["scope"];
+  filePath: string;
+  servers: ResolvedServer[];
+  repoPath?: string;
 };
 
 function formatJsonContent(value: unknown): string {
@@ -23,42 +38,102 @@ export async function rollbackAppliedTargets(targets: ApplyTargetResult[]): Prom
   }
 }
 
-async function prepareTargets(servers: ResolvedServer[]): Promise<PreparedTarget[]> {
-  const codexPath = getCodexConfigPath();
-  const claudePath = getClaudeConfigPath();
-  const geminiPath = getGeminiConfigPath();
+async function prepareTarget(target: PreparedTargetInput): Promise<PreparedTarget> {
+  if (target.client === "codex") {
+    const existingContent = await readCodexConfig(target.filePath);
+    return {
+      client: target.client,
+      scope: target.scope,
+      filePath: target.filePath,
+      backupPath: null,
+      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+      nextContent: mergeCodexConfig(existingContent, target.servers),
+    };
+  }
 
-  const codexExisting = await readCodexConfig(codexPath);
-  const claudeExisting = await readClaudeConfig(claudePath);
-  const geminiExisting = await readGeminiConfig(geminiPath);
+  if (target.client === "claude") {
+    const existingConfig = await readClaudeConfig(target.filePath);
+    return {
+      client: target.client,
+      scope: target.scope,
+      filePath: target.filePath,
+      backupPath: null,
+      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+      nextContent: formatJsonContent(renderClaudeConfig(existingConfig, target.servers)),
+    };
+  }
 
-  return [
+  const existingConfig = await readGeminiConfig(target.filePath);
+  return {
+    client: target.client,
+    scope: target.scope,
+    filePath: target.filePath,
+    backupPath: null,
+    ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+    nextContent: formatJsonContent(renderGeminiConfig(existingConfig, target.servers)),
+  };
+}
+
+async function prepareTargets(resolution: ResolutionResult): Promise<PreparedTarget[]> {
+  const targets: PreparedTargetInput[] = [
     {
       client: "codex",
-      filePath: codexPath,
-      backupPath: null,
-      nextContent: mergeCodexConfig(codexExisting, servers),
+      scope: "global",
+      filePath: getCodexConfigPath(),
+      servers: resolution.globalServers,
     },
     {
       client: "claude",
-      filePath: claudePath,
-      backupPath: null,
-      nextContent: formatJsonContent(renderClaudeConfig(claudeExisting, servers)),
+      scope: "global",
+      filePath: getClaudeConfigPath(),
+      servers: resolution.globalServers,
     },
     {
       client: "gemini",
-      filePath: geminiPath,
-      backupPath: null,
-      nextContent: formatJsonContent(renderGeminiConfig(geminiExisting, servers)),
+      scope: "global",
+      filePath: getGeminiConfigPath(),
+      servers: resolution.globalServers,
     },
   ];
+
+  if (resolution.matchedRepo) {
+    targets.push(
+      {
+        client: "codex",
+        scope: "repo",
+        filePath: getRepoCodexConfigPath(resolution.repoPath),
+        repoPath: resolution.repoPath,
+        servers: resolution.repoScopedServers,
+      },
+      {
+        client: "claude",
+        scope: "repo",
+        filePath: getRepoClaudeConfigPath(resolution.repoPath),
+        repoPath: resolution.repoPath,
+        servers: resolution.repoScopedServers,
+      },
+      {
+        client: "gemini",
+        scope: "repo",
+        filePath: getRepoGeminiConfigPath(resolution.repoPath),
+        repoPath: resolution.repoPath,
+        servers: resolution.repoScopedServers,
+      },
+    );
+  }
+
+  return Promise.all(targets.map((target) => prepareTarget(target)));
 }
 
-export async function applyResolvedServers(servers: ResolvedServer[]): Promise<ApplyResult> {
-  const preparedTargets = await prepareTargets(servers);
+export async function applyResolvedServers(resolution: ResolutionResult): Promise<ApplyResult> {
+  const preparedTargets = await prepareTargets(resolution);
 
   for (const target of preparedTargets) {
-    target.backupPath = await createBackupIfExists(target.filePath);
+    target.backupPath = await createBackupIfExists(target.filePath, {
+      client: target.client,
+      scope: target.scope,
+      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+    });
   }
 
   let failedTarget: SupportedClient | null = null;
@@ -83,10 +158,12 @@ export async function applyResolvedServers(servers: ResolvedServer[]): Promise<A
   }
 
   return {
-    targets: preparedTargets.map<ApplyTargetResult>(({ client, filePath, backupPath }) => ({
+    targets: preparedTargets.map<ApplyTargetResult>(({ client, scope, filePath, backupPath, repoPath }) => ({
       client,
+      scope,
       filePath,
       backupPath,
+      ...(repoPath === undefined ? {} : { repoPath }),
     })),
     rollbackPerformed: false,
   };

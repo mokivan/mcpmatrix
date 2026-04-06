@@ -21,7 +21,7 @@ Imports supported client MCP configs into the canonical YAML file.
 
 Prints the local packaged JSON Schema path and file URI for editor integration.
 
-### `mcpmatrix backups list [--client <codex|claude|gemini>]`
+### `mcpmatrix backups list [--client <codex|claude|gemini>] [--repo <path>]`
 
 Lists versioned backups from `~/.mcpmatrix/backups/`.
 
@@ -41,7 +41,7 @@ Validates the canonical config structure and local command executability.
 
 Runs diagnostics for commands, env vars, repo accessibility, and suggestions.
 
-### `mcpmatrix rollback [--client <codex|claude|gemini>] [--backup <name-or-path>]`
+### `mcpmatrix rollback [--client <codex|claude|gemini>] [--backup <name-or-path>] [--repo <path>]`
 
 Restores the latest or selected versioned backup into live client config files.
 

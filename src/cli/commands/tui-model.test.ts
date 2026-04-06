@@ -63,6 +63,26 @@ const resolution: ResolutionResult = {
   matchedRepo: true,
   warnings: [],
   tags: ["backend"],
+  globalServers: [
+    {
+      name: "github",
+      transport: "stdio",
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-github"],
+      env: {
+        GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+      },
+    },
+  ],
+  repoScopedServers: [
+    {
+      name: "browser",
+      transport: "stdio",
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-browser"],
+      env: {},
+    },
+  ],
   servers: [
     {
       name: "github",

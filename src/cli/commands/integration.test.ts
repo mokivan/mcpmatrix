@@ -115,6 +115,9 @@ scopes:
     const codexPath = path.join(homeDir, ".codex", "config.toml");
     const claudePath = path.join(homeDir, ".claude.json");
     const geminiPath = path.join(homeDir, ".gemini", "settings.json");
+    const repoCodexPath = path.join(repoDir, ".codex", "config.toml");
+    const repoClaudePath = path.join(repoDir, ".mcp.json");
+    const repoGeminiPath = path.join(repoDir, ".gemini", "settings.json");
 
     await writeUserConfig(
       homeDir,
@@ -153,6 +156,13 @@ scopes:
       theme: string;
       mcpServers: Record<string, unknown>;
     };
+    const repoClaudeContent = JSON.parse(await fs.promises.readFile(repoClaudePath, "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    const repoGeminiContent = JSON.parse(await fs.promises.readFile(repoGeminiPath, "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    const repoCodexContent = await fs.promises.readFile(repoCodexPath, "utf8");
 
     expect(codexContent).toContain('model = "gpt-5"');
     expect(codexContent).toContain("[mcp_servers.\"github\"]");
@@ -160,10 +170,13 @@ scopes:
     expect(Object.keys(claudeContent.mcpServers)).toEqual(["github"]);
     expect(geminiContent.theme).toBe("light");
     expect(Object.keys(geminiContent.mcpServers)).toEqual(["github"]);
+    expect(repoCodexContent).toContain("# No MCP servers resolved by mcpmatrix");
+    expect(repoClaudeContent.mcpServers).toEqual({});
+    expect(repoGeminiContent.mcpServers).toEqual({});
     const backups = await fs.promises.readdir(getBackupsDir());
-    expect(backups.some((entry) => entry.startsWith("config-") && entry.endsWith(".toml"))).toBe(true);
-    expect(backups.some((entry) => entry.startsWith("claude-") && entry.endsWith(".json"))).toBe(true);
-    expect(backups.some((entry) => entry.startsWith("settings-") && entry.endsWith(".json"))).toBe(true);
+    expect(backups.some((entry) => entry.startsWith("codex-global-") && entry.endsWith(".toml"))).toBe(true);
+    expect(backups.some((entry) => entry.startsWith("claude-global-") && entry.endsWith(".json"))).toBe(true);
+    expect(backups.some((entry) => entry.startsWith("gemini-global-") && entry.endsWith(".json"))).toBe(true);
   });
 
   it("applies config when Claude and Gemini JSON files contain a UTF-8 BOM", async () => {

@@ -30,12 +30,24 @@ export function getCodexConfigPath(): string {
   return path.join(getHomeDir(), ".codex", "config.toml");
 }
 
+export function getRepoCodexConfigPath(repoPath: string): string {
+  return path.join(repoPath, ".codex", "config.toml");
+}
+
 export function getClaudeConfigPath(): string {
   return path.join(getHomeDir(), ".claude.json");
 }
 
+export function getRepoClaudeConfigPath(repoPath: string): string {
+  return path.join(repoPath, ".mcp.json");
+}
+
 export function getGeminiConfigPath(): string {
   return path.join(getHomeDir(), ".gemini", "settings.json");
+}
+
+export function getRepoGeminiConfigPath(repoPath: string): string {
+  return path.join(repoPath, ".gemini", "settings.json");
 }
 
 function isWindowsStyleAbsolutePath(inputPath: string): boolean {

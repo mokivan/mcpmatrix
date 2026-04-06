@@ -46,6 +46,16 @@ describe("tui-service", () => {
       matchedRepo: true,
       warnings: [],
       tags: ["node"],
+      globalServers: [
+        {
+          name: "github",
+          transport: "stdio",
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-github"],
+          env: {},
+        },
+      ],
+      repoScopedServers: [],
       servers: [
         {
           name: "github",

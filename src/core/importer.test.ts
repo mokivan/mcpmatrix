@@ -20,7 +20,7 @@ afterEach(async () => {
   while (tempDirs.length > 0) {
     const tempDir = tempDirs.pop();
     if (tempDir && fs.existsSync(tempDir)) {
-      await fs.promises.rm(tempDir, { recursive: true, force: true });
+      await fs.promises.rm(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
     }
   }
 });

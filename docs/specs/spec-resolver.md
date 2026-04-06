@@ -47,4 +47,10 @@ postgres
 
 ## Expected Output
 
-A resolved list of MCP servers ready to be mapped to client configuration.
+A resolved canonical server set with:
+
+- `servers`: the full active server list in final order
+- `globalServers`: the subset sourced from `scopes.global.enable`
+- `repoScopedServers`: the subset sourced from matching `tags` and `repo.enable`, excluding names already active globally
+
+The combined `servers` list remains the canonical active server order for diagnostics and UI views.

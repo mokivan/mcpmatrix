@@ -13,13 +13,14 @@ Adapters convert the canonical mcpmatrix configuration into specific formats use
 1. map canonical server definitions to client format
 2. preserve supported transport metadata for each client
 3. reject unsupported target/client combinations before writing files
-4. write configuration files to the correct location
+4. write global and repo-scoped configuration files to the correct location
 
 ## Codex
 
-File:
+Files:
 
-`~/.codex/config.toml`
+- global: `~/.codex/config.toml`
+- repo-scoped: `<repo>/.codex/config.toml`
 
 Supported output:
 
@@ -46,13 +47,10 @@ Codex adapter limitations:
 
 ## Claude Code
 
-File:
+Files:
 
-`~/.claude.json`
-
-Section:
-
-`mcpServers`
+- global: `~/.claude.json` using `mcpServers`
+- repo-scoped: `<repo>/.mcp.json`
 
 Supported output:
 
@@ -62,9 +60,10 @@ Supported output:
 
 ## Gemini
 
-File:
+Files:
 
-`~/.gemini/settings.json`
+- global: `~/.gemini/settings.json`
+- repo-scoped: `<repo>/.gemini/settings.json`
 
 Section:
 
@@ -84,8 +83,11 @@ Gemini adapter limitations:
 
 Input:
 
-Resolved canonical MCP server list
+Resolved canonical MCP server sets partitioned by scope:
+
+- `globalServers`
+- `repoScopedServers`
 
 Output:
 
-Client configuration file compatible with the target client, or a clear incompatibility error before any writes occur.
+Client configuration files compatible with the target client and scope, or a clear incompatibility error before any writes occur.

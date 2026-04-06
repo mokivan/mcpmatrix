@@ -44,7 +44,8 @@ async function main(): Promise<void> {
     .command("list")
     .description("List detected backups under ~/.mcpmatrix/backups/")
     .option("--client <client>", "Filter backups by client")
-    .action(async (options: { client?: "codex" | "claude" | "gemini" }) => {
+    .option("--repo <path>", "List repo-scoped backups for a specific repository")
+    .action(async (options: { client?: "codex" | "claude" | "gemini"; repo?: string }) => {
       await runListBackupsCommand(options);
     });
 
@@ -81,10 +82,11 @@ async function main(): Promise<void> {
 
   program
     .command("rollback")
-    .description("Restore the latest backup globally or for a single client")
+    .description("Restore the latest global or repo-scoped backup state")
     .option("--client <client>", "Restore only one client config")
     .option("--backup <backup>", "Restore a specific backup file by name or path")
-    .action(async (options: { client?: "codex" | "claude" | "gemini"; backup?: string }) => {
+    .option("--repo <path>", "Restore repo-scoped backups for a specific repository")
+    .action(async (options: { client?: "codex" | "claude" | "gemini"; backup?: string; repo?: string }) => {
       await runRollbackCommand(options);
     });
 

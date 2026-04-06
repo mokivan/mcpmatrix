@@ -168,6 +168,7 @@ Resolves the active server set for the current repository and shows:
 - detected repo path
 - active tags
 - active servers
+- global vs repo-scoped server partitions
 - transport and per-client compatibility
 - files that would be updated
 - estimated diff size
@@ -184,64 +185,75 @@ Resolves the same server set and writes client configs.
 
 Client outputs:
 
-- Codex: `~/.codex/config.toml`
-- Claude Code: `~/.claude.json`
-- Gemini: `~/.gemini/settings.json`
+- Codex global: `~/.codex/config.toml`
+- Codex repo-scoped: `<repo>/.codex/config.toml`
+- Claude Code global: `~/.claude.json`
+- Claude Code repo-scoped: `<repo>/.mcp.json`
+- Gemini global: `~/.gemini/settings.json`
+- Gemini repo-scoped: `<repo>/.gemini/settings.json`
 
 Write behavior:
 
-- Codex updates only a managed `mcpmatrix` block inside `config.toml`, using named TOML tables under `mcp_servers`
-- Claude updates only the `mcpServers` section inside `.claude.json`
+- global scope writes only servers resolved from `scopes.global.enable`
+- repo scope writes only servers resolved from the matched repo's `tags` and `enable`, excluding names already active globally
+- Codex updates only a managed `mcpmatrix` block inside each `config.toml`, using named TOML tables under `mcp_servers`
+- Claude updates only the `mcpServers` section inside `.claude.json` and `.mcp.json`
 - Gemini updates only the `mcpServers` section inside `settings.json`
 - stdio and supported remote transports are rendered per client format
 - `apply` fails before writing if any active server cannot be represented by Codex, Claude, or Gemini
 - existing content outside those managed areas is preserved
 - existing files are backed up before overwrite
-- `apply` is transactional across supported clients: either all targets are updated or the previous state is restored
+- `apply` is transactional across all selected targets: either all global and repo-scoped files are updated or the previous state is restored
 
 Backup files:
 
 - stored in `~/.mcpmatrix/backups/`
-- filenames are versioned by target, for example `config-YYYY-MM-DD-HH-MM.toml`
-- latest 3 backups are retained per target
+- filenames are versioned by client and scope, for example `codex-global-YYYY-MM-DD-HH-MM.toml`
+- each backup stores metadata for the exact live target path
+- latest 3 backups are retained per exact target file
 
 Rollback behavior:
 
 - if any target write fails, `mcpmatrix apply` exits non-zero
-- mcpmatrix restores all supported client files to their pre-apply state
+- mcpmatrix restores all selected client files to their pre-apply state
 - a failed apply should never leave a mixed client state behind
 
 Compatibility note:
 
 - mcpmatrix tolerates UTF-8 BOM-prefixed YAML, TOML, and JSON config files when loading canonical config or importing/updating client configs
 
-### `mcpmatrix backups list [--client <codex|claude|gemini>]`
+### `mcpmatrix backups list [--client <codex|claude|gemini>] [--repo <path>]`
 
 Lists versioned backups stored in `~/.mcpmatrix/backups/`.
 
 Output includes:
 
 - client group
+- scope
 - backup file name
 - inferred timestamp
+- live target path
 - full backup path
 
 If no backups exist, the command prints an empty-state message and exits successfully.
 
-### `mcpmatrix rollback [--client <codex|claude|gemini>] [--backup <name-or-path>]`
+### `mcpmatrix rollback [--client <codex|claude|gemini>] [--backup <name-or-path>] [--repo <path>]`
 
 Restores versioned backups into the live client config files.
 
 Behavior:
 
-- without flags, restores the latest backup for Codex, Claude, and Gemini
-- with `--client`, restores only the latest backup for that client
+- without flags, restores the latest global backup for Codex, Claude, and Gemini
+- with `--client`, restores only the latest backup for that client in the selected scope
+- with `--repo`, restores the latest repo-scoped backups for that repository
 - with `--backup`, restores a specific backup file by base name from `~/.mcpmatrix/backups/` or by absolute path
 - when `--backup` and `--client` are both provided, the backup must belong to that client
+- when `--backup` and `--repo` are both provided, the backup must belong to that repo and be repo-scoped
 
 Failure rules:
 
 - global rollback is strict: if any required client backup is missing, nothing is restored
+- repo rollback is strict: if any required repo-scoped client backup is missing, nothing is restored
 - single-client rollback fails when no backup exists for that client
 - an invalid or mismatched backup argument exits non-zero
 - rollback does not create a new backup entry for the restored files

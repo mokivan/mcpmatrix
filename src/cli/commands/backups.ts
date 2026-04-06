@@ -2,8 +2,12 @@ import type { SupportedClient } from "../../types";
 import { listBackups } from "../../utils/backup";
 import { logInfo } from "../../utils/logger";
 
-export async function runListBackupsCommand(options?: { client?: SupportedClient }): Promise<void> {
-  const backups = await listBackups(options?.client);
+export async function runListBackupsCommand(options?: { client?: SupportedClient; repo?: string }): Promise<void> {
+  const backups = await listBackups({
+    scope: options?.repo ? "repo" : "global",
+    ...(options?.client === undefined ? {} : { client: options.client }),
+    ...(options?.repo === undefined ? {} : { repoPath: options.repo }),
+  });
 
   if (backups.length === 0) {
     logInfo("No backups found.");
@@ -21,7 +25,8 @@ export async function runListBackupsCommand(options?: { client?: SupportedClient
   for (const [client, clientBackups] of groupedBackups) {
     logInfo(`${client}:`);
     for (const backup of clientBackups) {
-      logInfo(`- ${backup.backupFileName} (${backup.timestamp}) -> ${backup.backupPath}`);
+      const scopeLabel = backup.scope === "repo" ? `repo ${backup.repoPath}` : "global";
+      logInfo(`- [${scopeLabel}] ${backup.backupFileName} (${backup.timestamp}) -> ${backup.backupPath}`);
     }
   }
 }

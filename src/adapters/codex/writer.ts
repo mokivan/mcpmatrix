@@ -67,16 +67,21 @@ export function renderCodexManagedSection(servers: ResolvedServer[]): string {
 
 export function mergeCodexConfig(existingContent: string, servers: ResolvedServer[]): string {
   const managedSection = renderCodexManagedSection(servers);
-  const managedBlockPattern = new RegExp(
-    `${START_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?${END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n?`,
-    "m",
-  );
+  const escapedStartMarker = START_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedEndMarker = END_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const managedBlockPattern = new RegExp(`${escapedStartMarker}[\\s\\S]*?${escapedEndMarker}\\n?`, "gm");
+  const orphanMarkerPattern = new RegExp(`^(${escapedStartMarker}|${escapedEndMarker})\\s*$\\r?\\n?`, "gm");
 
   if (managedBlockPattern.test(existingContent)) {
-    return existingContent.replace(managedBlockPattern, managedSection).trimEnd() + "\n";
+    const preservedContent = existingContent.replace(managedBlockPattern, "").replace(orphanMarkerPattern, "").trimEnd();
+    if (preservedContent.length === 0) {
+      return managedSection;
+    }
+
+    return `${preservedContent}\n\n${managedSection}`;
   }
 
-  const trimmed = existingContent.trimEnd();
+  const trimmed = existingContent.replace(orphanMarkerPattern, "").trimEnd();
   if (trimmed.length === 0) {
     return managedSection;
   }

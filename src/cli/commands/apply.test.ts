@@ -40,6 +40,7 @@ describe("runApplyCommand", () => {
       targets: [
         {
           client: "codex",
+          scope: "global",
           filePath: "/tmp/codex.toml",
           backupPath: "/tmp/codex.toml.bak",
         },
@@ -69,6 +70,16 @@ describe("runApplyCommand", () => {
       matchedRepo: true,
       warnings: [],
       tags: [],
+      globalServers: [
+        {
+          name: "github",
+          transport: "stdio",
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-github"],
+          env: {},
+        },
+      ],
+      repoScopedServers: [],
       servers: [
         {
           name: "github",

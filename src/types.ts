@@ -60,11 +60,15 @@ export interface McpMatrixConfig {
 
 export type ResolvedServer = ({ name: string } & StdioServerDefinition) | ({ name: string } & RemoteServerDefinition);
 
+export type ConfigScope = "global" | "repo";
+
 export interface ResolutionResult {
   repoPath: string;
   matchedRepo: boolean;
   warnings: string[];
   tags: string[];
+  globalServers: ResolvedServer[];
+  repoScopedServers: ResolvedServer[];
   servers: ResolvedServer[];
 }
 
@@ -78,10 +82,12 @@ export type SupportedClient = "codex" | "claude" | "gemini";
 
 export interface BackupEntry {
   client: SupportedClient;
+  scope: ConfigScope;
   filePath: string;
   backupPath: string;
   backupFileName: string;
   timestamp: string;
+  repoPath?: string;
 }
 
 export interface ImportedConfigSource {
@@ -96,8 +102,10 @@ export interface ImportedConfigResult {
 
 export interface ApplyTargetResult {
   client: SupportedClient;
+  scope: ConfigScope;
   filePath: string;
   backupPath: string | null;
+  repoPath?: string;
 }
 
 export interface ApplyResult {
@@ -107,8 +115,10 @@ export interface ApplyResult {
 
 export interface RollbackTarget {
   client: SupportedClient;
+  scope: ConfigScope;
   filePath: string;
   backupPath: string;
+  repoPath?: string;
 }
 
 export interface RollbackResult {

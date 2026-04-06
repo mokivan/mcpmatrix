@@ -50,8 +50,9 @@ describe("createBackupIfExists", () => {
     const backupPath = await createBackupIfExists(configPath);
 
     expect(backupPath).toContain(getBackupsDir());
-    expect(path.basename(backupPath ?? "")).toMatch(/^config-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.toml$/);
+    expect(path.basename(backupPath ?? "")).toMatch(/^codex-global-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.toml$/);
     expect(fs.readFileSync(backupPath ?? "", "utf8")).toBe("model = \"gpt-5\"\n");
+    expect(fs.existsSync(`${backupPath}.meta.json`)).toBe(true);
   });
 
   it("sanitizes dotfile names when creating versioned backups", async () => {
@@ -59,7 +60,7 @@ describe("createBackupIfExists", () => {
     const claudePath = await createTempFile(".claude.json", "{\n  \"mcpServers\": {}\n}\n");
     const backupPath = await createBackupIfExists(claudePath);
 
-    expect(path.basename(backupPath ?? "")).toMatch(/^claude-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json$/);
+    expect(path.basename(backupPath ?? "")).toMatch(/^claude-global-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json$/);
     expect(fs.readFileSync(backupPath ?? "", "utf8")).toContain("\"mcpServers\"");
   });
 
@@ -72,7 +73,9 @@ describe("createBackupIfExists", () => {
       await createBackupIfExists(configPath);
     }
 
-    const backups = (await fs.promises.readdir(getBackupsDir())).filter((entry) => entry.startsWith("config-"));
+    const backups = (await fs.promises.readdir(getBackupsDir())).filter(
+      (entry) => entry.startsWith("codex-global-") && !entry.endsWith(".meta.json"),
+    );
     expect(backups).toHaveLength(3);
   });
 
@@ -88,8 +91,8 @@ describe("createBackupIfExists", () => {
     expect(backups.map((entry) => entry.client).sort()).toEqual(["claude", "codex"]);
     expect(backups.some((entry) => entry.backupPath === claudeBackup)).toBe(true);
     expect(backups.some((entry) => entry.backupPath === codexBackup)).toBe(true);
-    expect((await getLatestBackup("codex"))?.backupPath).toBe(codexBackup);
-    expect((await getLatestBackup("claude"))?.backupPath).toBe(claudeBackup);
+    expect((await getLatestBackup({ client: "codex" }))?.backupPath).toBe(codexBackup);
+    expect((await getLatestBackup({ client: "claude" }))?.backupPath).toBe(claudeBackup);
   });
 
   it("resolves a backup by file name inside the backups directory", async () => {
@@ -101,6 +104,22 @@ describe("createBackupIfExists", () => {
 
     expect(resolved.client).toBe("codex");
     expect(resolved.backupPath).toBe(backupPath);
+  });
+
+  it("filters repo-scoped backups by repo path", async () => {
+    await createTempHome();
+    const repoConfigPath = await createTempFile("settings.json", "{\n  \"mcpServers\": {}\n}\n");
+
+    await createBackupIfExists(repoConfigPath, {
+      client: "gemini",
+      scope: "repo",
+      repoPath: "/repo",
+    });
+
+    const repoBackups = await listBackups({ client: "gemini", scope: "repo", repoPath: "/repo" });
+    expect(repoBackups).toHaveLength(1);
+    expect(repoBackups[0]?.scope).toBe("repo");
+    expect(repoBackups[0]?.repoPath).toBe("/repo");
   });
 
   it("writes files through a temp file and replaces the target content", async () => {

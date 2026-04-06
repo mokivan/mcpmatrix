@@ -30,14 +30,20 @@ export function resolveServers(config: McpMatrixConfig, repoPath: string): Resol
   const tags = repoConfig?.tags ?? [];
   const enabledByTags = tags.flatMap((tagName) => tagsScopes[tagName]?.enable ?? []);
   const enabledByRepo = repoConfig?.enable ?? [];
-  const resolvedNames = dedupeServerNames([...globalEnable, ...enabledByTags, ...enabledByRepo]);
+  const globalNames = dedupeServerNames(globalEnable);
+  const repoScopedNames = dedupeServerNames([...enabledByTags, ...enabledByRepo]).filter(
+    (serverName) => !globalNames.includes(serverName),
+  );
+  const resolvedNames = [...globalNames, ...repoScopedNames];
   const warnings: string[] = [];
 
   if (!matchedRepo) {
     warnings.push(`Repository is not configured: ${normalizedRepoPath}`);
   }
 
-  const servers: ResolvedServer[] = resolvedNames.map((serverName) => {
+  const serverMap = new Map<string, ResolvedServer>();
+
+  for (const serverName of resolvedNames) {
     const serverDefinition = config.servers[serverName];
 
     if (!serverDefinition) {
@@ -45,13 +51,14 @@ export function resolveServers(config: McpMatrixConfig, repoPath: string): Resol
     }
 
     if (serverDefinition.transport === "stdio") {
-      return {
+      serverMap.set(serverName, {
         name: serverName,
         transport: "stdio",
         command: serverDefinition.command,
         args: serverDefinition.args ?? [],
         env: serverDefinition.env ?? {},
-      };
+      });
+      continue;
     }
 
     const remoteServer: ResolvedServer = {
@@ -63,14 +70,22 @@ export function resolveServers(config: McpMatrixConfig, repoPath: string): Resol
       ...(serverDefinition.auth === undefined ? {} : { auth: serverDefinition.auth }),
     };
 
-    return remoteServer;
-  });
+    serverMap.set(serverName, remoteServer);
+  }
+
+  const globalServers = globalNames.map((serverName) => serverMap.get(serverName)).filter((server): server is ResolvedServer => server !== undefined);
+  const repoScopedServers = repoScopedNames
+    .map((serverName) => serverMap.get(serverName))
+    .filter((server): server is ResolvedServer => server !== undefined);
+  const servers = [...globalServers, ...repoScopedServers];
 
   return {
     repoPath: normalizedRepoPath,
     matchedRepo,
     warnings,
     tags,
+    globalServers,
+    repoScopedServers,
     servers,
   };
 }

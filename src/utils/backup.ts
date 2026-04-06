@@ -1,35 +1,46 @@
 import fs from "fs";
 import path from "path";
-import type { BackupEntry, SupportedClient } from "../types";
-import { getBackupsDir } from "./paths";
-import { getClaudeConfigPath, getCodexConfigPath, getGeminiConfigPath } from "./paths";
+import type { BackupEntry, ConfigScope, SupportedClient } from "../types";
+import { getBackupsDir, getClaudeConfigPath, getCodexConfigPath, getGeminiConfigPath, normalizeRepoPath } from "./paths";
 
 type BackupTarget = {
   client: SupportedClient;
+  scope: ConfigScope;
   filePath: string;
-  stem: string;
   extension: string;
+  repoPath?: string;
 };
 
-const BACKUP_TARGETS: Record<SupportedClient, () => BackupTarget> = {
-  codex: () => ({
-    client: "codex",
+type BackupMetadata = {
+  client: SupportedClient;
+  scope: ConfigScope;
+  filePath: string;
+  timestamp: string;
+  repoPath?: string;
+};
+
+type BackupQuery = {
+  client?: SupportedClient;
+  scope?: ConfigScope;
+  repoPath?: string;
+};
+
+const LEGACY_TARGETS: Record<SupportedClient, { filePath: string; stem: string; extension: string }> = {
+  codex: {
     filePath: getCodexConfigPath(),
     stem: "config",
     extension: ".toml",
-  }),
-  claude: () => ({
-    client: "claude",
+  },
+  claude: {
     filePath: getClaudeConfigPath(),
     stem: "claude",
     extension: ".json",
-  }),
-  gemini: () => ({
-    client: "gemini",
+  },
+  gemini: {
     filePath: getGeminiConfigPath(),
     stem: "settings",
     extension: ".json",
-  }),
+  },
 };
 
 const TIMESTAMP_PATTERN = "\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}";
@@ -38,13 +49,8 @@ export async function ensureParentDir(filePath: string): Promise<void> {
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
 }
 
-function sanitizeBackupStem(filePath: string): { stem: string; extension: string } {
-  const parsedPath = path.parse(filePath);
-  const stem = parsedPath.name.replace(/^\.+/, "").replace(/[^a-zA-Z0-9_-]+/g, "-") || "config";
-  return {
-    stem,
-    extension: parsedPath.ext || ".bak",
-  };
+function getBackupMetaPath(backupPath: string): string {
+  return `${backupPath}.meta.json`;
 }
 
 function createTimestamp(date = new Date()): string {
@@ -56,41 +62,184 @@ function createTimestamp(date = new Date()): string {
   return `${year}-${month}-${day}-${hour}-${minute}`;
 }
 
-async function enforceBackupRetention(stem: string, extension: string): Promise<void> {
-  const backupsDir = getBackupsDir();
+function getBackupExtension(filePath: string): string {
+  return path.parse(filePath).ext || ".bak";
+}
 
-  if (!fs.existsSync(backupsDir)) {
-    return;
+function getGlobalBackupTarget(client: SupportedClient): BackupTarget {
+  const legacyTarget = LEGACY_TARGETS[client];
+  return {
+    client,
+    scope: "global",
+    filePath: legacyTarget.filePath,
+    extension: legacyTarget.extension,
+  };
+}
+
+function inferLegacyClientFromFilePath(filePath: string): SupportedClient | null {
+  const normalizedPath = normalizeRepoPath(filePath);
+
+  for (const [client, target] of Object.entries(LEGACY_TARGETS) as Array<[SupportedClient, { filePath: string }]>) {
+    if (normalizeRepoPath(target.filePath) === normalizedPath) {
+      return client;
+    }
   }
 
-  const matchingFiles = (await fs.promises.readdir(backupsDir))
-    .filter((entry) => entry.startsWith(`${stem}-`) && entry.endsWith(extension))
-    .sort()
-    .reverse();
+  const baseName = path.basename(filePath).toLowerCase();
+  if (baseName === "config.toml") {
+    return "codex";
+  }
+  if (baseName === ".claude.json" || baseName === "claude.json") {
+    return "claude";
+  }
+  if (baseName === "settings.json") {
+    return "gemini";
+  }
 
-  for (const staleBackup of matchingFiles.slice(3)) {
-    await fs.promises.rm(path.join(backupsDir, staleBackup), { force: true });
+  return null;
+}
+
+function resolveBackupTarget(
+  filePath: string,
+  target?: { client: SupportedClient; scope: ConfigScope; repoPath?: string },
+): BackupTarget {
+  if (target) {
+    return {
+      client: target.client,
+      scope: target.scope,
+      filePath,
+      extension: getBackupExtension(filePath),
+      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+    };
+  }
+
+  const inferredClient = inferLegacyClientFromFilePath(filePath);
+  if (!inferredClient) {
+    throw new Error(`Unable to infer backup target for ${filePath}`);
+  }
+
+  return {
+    client: inferredClient,
+    scope: "global",
+    filePath,
+    extension: getBackupExtension(filePath),
+  };
+}
+
+async function writeBackupMetadata(backupPath: string, target: BackupTarget, timestamp: string): Promise<void> {
+  const metadata: BackupMetadata = {
+    client: target.client,
+    scope: target.scope,
+    filePath: target.filePath,
+    timestamp,
+    ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+  };
+
+  await fs.promises.writeFile(getBackupMetaPath(backupPath), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
+}
+
+function getLegacyBackupEntry(fileName: string): BackupEntry | null {
+  for (const [client, target] of Object.entries(LEGACY_TARGETS) as Array<
+    [SupportedClient, { filePath: string; stem: string; extension: string }]
+  >) {
+    const pattern = new RegExp(
+      `^${target.stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-(${TIMESTAMP_PATTERN})(?:-\\d+)?${target.extension.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+    );
+    const match = fileName.match(pattern);
+
+    if (match) {
+      return {
+        client,
+        scope: "global",
+        filePath: target.filePath,
+        backupPath: path.join(getBackupsDir(), fileName),
+        backupFileName: fileName,
+        timestamp: match[1] ?? "",
+      };
+    }
+  }
+
+  return null;
+}
+
+async function getBackupEntry(backupPath: string): Promise<BackupEntry | null> {
+  const metaPath = getBackupMetaPath(backupPath);
+
+  if (fs.existsSync(metaPath)) {
+    const metadata = JSON.parse(await fs.promises.readFile(metaPath, "utf8")) as BackupMetadata;
+    return {
+      client: metadata.client,
+      scope: metadata.scope,
+      filePath: metadata.filePath,
+      backupPath,
+      backupFileName: path.basename(backupPath),
+      timestamp: metadata.timestamp,
+      ...(metadata.repoPath === undefined ? {} : { repoPath: metadata.repoPath }),
+    };
+  }
+
+  return getLegacyBackupEntry(path.basename(backupPath));
+}
+
+function matchesBackupQuery(entry: BackupEntry, query?: BackupQuery): boolean {
+  if (query?.client && entry.client !== query.client) {
+    return false;
+  }
+
+  if (query?.scope && entry.scope !== query.scope) {
+    return false;
+  }
+
+  if (query?.repoPath) {
+    return entry.repoPath !== undefined && normalizeRepoPath(entry.repoPath) === normalizeRepoPath(query.repoPath);
+  }
+
+  return true;
+}
+
+function sortBackupsDescending(left: BackupEntry, right: BackupEntry): number {
+  return right.backupFileName.localeCompare(left.backupFileName);
+}
+
+async function enforceBackupRetention(target: BackupTarget): Promise<void> {
+  const backups = await listBackups({
+    client: target.client,
+    scope: target.scope,
+    ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+  });
+
+  for (const staleBackup of backups.slice(3)) {
+    await fs.promises.rm(staleBackup.backupPath, { force: true });
+    await fs.promises.rm(getBackupMetaPath(staleBackup.backupPath), { force: true });
   }
 }
 
-export async function createBackupIfExists(filePath: string): Promise<string | null> {
+export async function createBackupIfExists(
+  filePath: string,
+  target?: { client: SupportedClient; scope: ConfigScope; repoPath?: string },
+): Promise<string | null> {
   if (!fs.existsSync(filePath)) {
     return null;
   }
 
   const backupsDir = getBackupsDir();
-  const { stem, extension } = sanitizeBackupStem(filePath);
+  const resolvedTarget = resolveBackupTarget(filePath, target);
   const timestamp = createTimestamp();
-  let backupPath = path.join(backupsDir, `${stem}-${timestamp}${extension}`);
+  let backupFileName = `${resolvedTarget.client}-${resolvedTarget.scope}-${timestamp}${resolvedTarget.extension}`;
+  let backupPath = path.join(backupsDir, backupFileName);
   let collisionIndex = 1;
 
   await fs.promises.mkdir(backupsDir, { recursive: true });
+
   while (fs.existsSync(backupPath)) {
-    backupPath = path.join(backupsDir, `${stem}-${timestamp}-${collisionIndex}${extension}`);
+    backupFileName = `${resolvedTarget.client}-${resolvedTarget.scope}-${timestamp}-${collisionIndex}${resolvedTarget.extension}`;
+    backupPath = path.join(backupsDir, backupFileName);
     collisionIndex += 1;
   }
+
   await fs.promises.copyFile(filePath, backupPath);
-  await enforceBackupRetention(stem, extension);
+  await writeBackupMetadata(backupPath, resolvedTarget, timestamp);
+  await enforceBackupRetention(resolvedTarget);
 
   return backupPath;
 }
@@ -136,60 +285,38 @@ export async function writeFileAtomic(filePath: string, content: string | Uint8A
 }
 
 export function getBackupTarget(client: SupportedClient): BackupTarget {
-  return BACKUP_TARGETS[client]();
+  return getGlobalBackupTarget(client);
 }
 
 export function getAllBackupTargets(): BackupTarget[] {
-  return (Object.keys(BACKUP_TARGETS) as SupportedClient[]).map((client) => getBackupTarget(client));
+  return (Object.keys(LEGACY_TARGETS) as SupportedClient[]).map((client) => getGlobalBackupTarget(client));
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function parseBackupEntry(fileName: string): BackupEntry | null {
-  for (const target of getAllBackupTargets()) {
-    const pattern = new RegExp(`^${escapeRegex(target.stem)}-(${TIMESTAMP_PATTERN})(?:-\\d+)?${escapeRegex(target.extension)}$`);
-    const match = fileName.match(pattern);
-
-    if (match) {
-      return {
-        client: target.client,
-        filePath: target.filePath,
-        backupPath: path.join(getBackupsDir(), fileName),
-        backupFileName: fileName,
-        timestamp: match[1] ?? "",
-      };
-    }
-  }
-
-  return null;
-}
-
-function sortBackupsDescending(left: BackupEntry, right: BackupEntry): number {
-  return right.backupFileName.localeCompare(left.backupFileName);
-}
-
-export async function listBackups(client?: SupportedClient): Promise<BackupEntry[]> {
+export async function listBackups(query?: BackupQuery): Promise<BackupEntry[]> {
   const backupsDir = getBackupsDir();
   if (!fs.existsSync(backupsDir)) {
     return [];
   }
 
   const entries = await fs.promises.readdir(backupsDir);
-  return entries
-    .map((entry) => parseBackupEntry(entry))
+  const backupEntries = await Promise.all(
+    entries
+      .filter((entry) => !entry.endsWith(".meta.json"))
+      .map((entry) => getBackupEntry(path.join(backupsDir, entry))),
+  );
+
+  return backupEntries
     .filter((entry): entry is BackupEntry => entry !== null)
-    .filter((entry) => !client || entry.client === client)
+    .filter((entry) => matchesBackupQuery(entry, query))
     .sort(sortBackupsDescending);
 }
 
-export async function getLatestBackup(client: SupportedClient): Promise<BackupEntry | null> {
-  const backups = await listBackups(client);
+export async function getLatestBackup(query: { client: SupportedClient; scope?: ConfigScope; repoPath?: string }): Promise<BackupEntry | null> {
+  const backups = await listBackups(query);
   return backups[0] ?? null;
 }
 
-export function resolveBackupSelection(selection: string): BackupEntry {
+export async function resolveBackupSelection(selection: string): Promise<BackupEntry> {
   const backupsDir = getBackupsDir();
   const candidatePath = path.isAbsolute(selection) ? selection : path.join(backupsDir, selection);
 
@@ -197,7 +324,7 @@ export function resolveBackupSelection(selection: string): BackupEntry {
     throw new Error(`Backup not found: ${selection}`);
   }
 
-  const parsedEntry = parseBackupEntry(path.basename(candidatePath));
+  const parsedEntry = await getBackupEntry(candidatePath);
   if (!parsedEntry) {
     throw new Error(`Unsupported backup file: ${candidatePath}`);
   }

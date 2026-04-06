@@ -36,6 +36,8 @@ describe("resolver", () => {
 
     const result = resolveServers(config, "C:\\repo");
 
+    expect(result.globalServers.map((server) => server.name)).toEqual(["github"]);
+    expect(result.repoScopedServers.map((server) => server.name)).toEqual(["browser", "postgres"]);
     expect(result.servers.map((server) => server.name)).toEqual(["github", "browser", "postgres"]);
   });
 
@@ -57,6 +59,8 @@ describe("resolver", () => {
     );
 
     expect(result.tags).toEqual(["ecommerce", "data"]);
+    expect(result.globalServers.map((server) => server.name)).toEqual(["github"]);
+    expect(result.repoScopedServers.map((server) => server.name)).toEqual(["browser", "postgres", "medusa"]);
     expect(result.servers.map((server) => server.name)).toEqual(["github", "browser", "postgres", "medusa"]);
   });
 
@@ -64,6 +68,8 @@ describe("resolver", () => {
     const result = resolveServers(baseConfig, "/srv/unknown");
 
     expect(result.matchedRepo).toBe(false);
+    expect(result.globalServers.map((server) => server.name)).toEqual(["github"]);
+    expect(result.repoScopedServers).toEqual([]);
     expect(result.servers.map((server) => server.name)).toEqual(["github"]);
     expect(result.warnings).toHaveLength(1);
   });
@@ -89,6 +95,8 @@ describe("resolver", () => {
       "C:/Users/Ivan/repo",
     );
 
+    expect(result.globalServers.map((server) => server.name)).toEqual(["github"]);
+    expect(result.repoScopedServers.map((server) => server.name)).toEqual(["browser"]);
     expect(result.servers.map((server) => server.name)).toEqual(["github", "browser"]);
   });
 });

@@ -1,6 +1,7 @@
 import fs from "fs";
-import type { BackupEntry, RollbackResult, RollbackTarget, SupportedClient } from "../types";
+import type { BackupEntry, ConfigScope, RollbackResult, RollbackTarget, SupportedClient } from "../types";
 import { getLatestBackup, getAllBackupTargets, resolveBackupSelection, writeFileAtomic } from "../utils/backup";
+import { normalizeRepoPath } from "../utils/paths";
 
 type PreparedRollbackTarget = RollbackTarget & {
   previousContent: Buffer | null;
@@ -18,10 +19,12 @@ async function readFileIfExists(filePath: string): Promise<Buffer | null> {
 async function prepareRollbackTarget(entry: BackupEntry): Promise<PreparedRollbackTarget> {
   return {
     client: entry.client,
+    scope: entry.scope,
     filePath: entry.filePath,
     backupPath: entry.backupPath,
     previousContent: await readFileIfExists(entry.filePath),
     backupContent: await fs.promises.readFile(entry.backupPath),
+    ...(entry.repoPath === undefined ? {} : { repoPath: entry.repoPath }),
   };
 }
 
@@ -40,14 +43,20 @@ function getRollbackErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function resolveTargetsFromLatest(client?: SupportedClient): Promise<BackupEntry[]> {
-  const clients = client ? [client] : getAllBackupTargets().map((target) => target.client);
+async function resolveTargetsFromLatest(options?: { client?: SupportedClient; scope?: ConfigScope; repoPath?: string }): Promise<BackupEntry[]> {
+  const scope = options?.scope ?? "global";
+  const clients = options?.client ? [options.client] : getAllBackupTargets().map((target) => target.client);
   const entries: BackupEntry[] = [];
 
   for (const currentClient of clients) {
-    const latestBackup = await getLatestBackup(currentClient);
+    const latestBackup = await getLatestBackup({
+      client: currentClient,
+      scope,
+      ...(options?.repoPath === undefined ? {} : { repoPath: options.repoPath }),
+    });
     if (!latestBackup) {
-      throw new Error(`No backup found for ${currentClient}`);
+      const scopeLabel = scope === "repo" ? `repo ${options?.repoPath}` : "global";
+      throw new Error(`No ${scopeLabel} backup found for ${currentClient}`);
     }
 
     entries.push(latestBackup);
@@ -56,20 +65,34 @@ async function resolveTargetsFromLatest(client?: SupportedClient): Promise<Backu
   return entries;
 }
 
-async function resolveTargets(options?: { client?: SupportedClient; backup?: string }): Promise<BackupEntry[]> {
+async function resolveTargets(options?: { client?: SupportedClient; backup?: string; repoPath?: string }): Promise<BackupEntry[]> {
   if (options?.backup) {
-    const selectedBackup = resolveBackupSelection(options.backup);
+    const selectedBackup = await resolveBackupSelection(options.backup);
     if (options.client && selectedBackup.client !== options.client) {
       throw new Error(`Backup ${selectedBackup.backupFileName} does not belong to ${options.client}`);
+    }
+
+    if (options.repoPath) {
+      if (selectedBackup.scope !== "repo") {
+        throw new Error(`Backup ${selectedBackup.backupFileName} is not repo-scoped`);
+      }
+
+      if (!selectedBackup.repoPath || normalizeRepoPath(selectedBackup.repoPath) !== normalizeRepoPath(options.repoPath)) {
+        throw new Error(`Backup ${selectedBackup.backupFileName} does not belong to repo ${options.repoPath}`);
+      }
     }
 
     return [selectedBackup];
   }
 
-  return resolveTargetsFromLatest(options?.client);
+  return resolveTargetsFromLatest({
+    scope: options?.repoPath ? "repo" : "global",
+    ...(options?.client === undefined ? {} : { client: options.client }),
+    ...(options?.repoPath === undefined ? {} : { repoPath: options.repoPath }),
+  });
 }
 
-export async function rollbackToBackup(options?: { client?: SupportedClient; backup?: string }): Promise<RollbackResult> {
+export async function rollbackToBackup(options?: { client?: SupportedClient; backup?: string; repoPath?: string }): Promise<RollbackResult> {
   const selectedTargets = await resolveTargets(options);
   const preparedTargets: PreparedRollbackTarget[] = [];
 
@@ -101,10 +124,12 @@ export async function rollbackToBackup(options?: { client?: SupportedClient; bac
   }
 
   return {
-    targets: preparedTargets.map<RollbackTarget>(({ client, filePath, backupPath }) => ({
+    targets: preparedTargets.map<RollbackTarget>(({ client, scope, filePath, backupPath, repoPath }) => ({
       client,
+      scope,
       filePath,
       backupPath,
+      ...(repoPath === undefined ? {} : { repoPath }),
     })),
   };
 }
