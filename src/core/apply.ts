@@ -1,4 +1,6 @@
 import { readClaudeConfig, renderClaudeConfig } from "../adapters/claude/writer";
+import { readCopilotCliConfig, renderCopilotCliConfig } from "../adapters/copilot-cli/writer";
+import { readCopilotVsCodeConfig, renderCopilotVsCodeConfig } from "../adapters/copilot-vscode/writer";
 import { readCodexConfig, mergeCodexConfig } from "../adapters/codex/writer";
 import { readGeminiConfig, renderGeminiConfig } from "../adapters/gemini/writer";
 import type { ApplyResult, ApplyTargetResult, ResolutionResult, ResolvedServer, SupportedClient } from "../types";
@@ -6,9 +8,13 @@ import { createBackupIfExists, restoreFromBackupOrRemove, writeFileAtomic } from
 import { SUPPORTED_CLIENTS } from "./client-selection";
 import {
   getClaudeConfigPath,
+  getCopilotCliConfigPath,
+  getCopilotVsCodeConfigPath,
   getCodexConfigPath,
   getGeminiConfigPath,
   getRepoClaudeConfigPath,
+  getRepoCopilotCliConfigPath,
+  getRepoCopilotVsCodeConfigPath,
   getRepoCodexConfigPath,
   getRepoGeminiConfigPath,
 } from "../utils/paths";
@@ -64,14 +70,38 @@ async function prepareTarget(target: PreparedTargetInput): Promise<PreparedTarge
     };
   }
 
-  const existingConfig = await readGeminiConfig(target.filePath);
+  if (target.client === "gemini") {
+    const existingConfig = await readGeminiConfig(target.filePath);
+    return {
+      client: target.client,
+      scope: target.scope,
+      filePath: target.filePath,
+      backupPath: null,
+      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+      nextContent: formatJsonContent(renderGeminiConfig(existingConfig, target.servers)),
+    };
+  }
+
+  if (target.client === "copilot-cli") {
+    const existingConfig = await readCopilotCliConfig(target.filePath);
+    return {
+      client: target.client,
+      scope: target.scope,
+      filePath: target.filePath,
+      backupPath: null,
+      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+      nextContent: formatJsonContent(renderCopilotCliConfig(existingConfig, target.servers)),
+    };
+  }
+
+  const existingConfig = await readCopilotVsCodeConfig(target.filePath);
   return {
     client: target.client,
     scope: target.scope,
     filePath: target.filePath,
     backupPath: null,
     ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
-    nextContent: formatJsonContent(renderGeminiConfig(existingConfig, target.servers)),
+    nextContent: formatJsonContent(renderCopilotVsCodeConfig(existingConfig, target.servers)),
   };
 }
 
@@ -93,6 +123,18 @@ async function prepareTargets(resolution: ResolutionResult, clients: SupportedCl
       client: "gemini",
       scope: "global",
       filePath: getGeminiConfigPath(),
+      servers: resolution.globalServers,
+    },
+    {
+      client: "copilot-cli",
+      scope: "global",
+      filePath: getCopilotCliConfigPath(),
+      servers: resolution.globalServers,
+    },
+    {
+      client: "copilot-vscode",
+      scope: "global",
+      filePath: getCopilotVsCodeConfigPath(),
       servers: resolution.globalServers,
     },
   ];
@@ -117,6 +159,20 @@ async function prepareTargets(resolution: ResolutionResult, clients: SupportedCl
         client: "gemini",
         scope: "repo",
         filePath: getRepoGeminiConfigPath(resolution.repoPath),
+        repoPath: resolution.repoPath,
+        servers: resolution.repoScopedServers,
+      },
+      {
+        client: "copilot-cli",
+        scope: "repo",
+        filePath: getRepoCopilotCliConfigPath(resolution.repoPath),
+        repoPath: resolution.repoPath,
+        servers: resolution.repoScopedServers,
+      },
+      {
+        client: "copilot-vscode",
+        scope: "repo",
+        filePath: getRepoCopilotVsCodeConfigPath(resolution.repoPath),
         repoPath: resolution.repoPath,
         servers: resolution.repoScopedServers,
       },

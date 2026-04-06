@@ -7,6 +7,8 @@ import { runDoctor } from "./doctor";
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
 let originalUserProfile: string | undefined;
+let originalAppData: string | undefined;
+let originalXdgConfigHome: string | undefined;
 
 function trackTempDir(tempDir: string): string {
   tempDirs.push(tempDir);
@@ -17,14 +19,20 @@ async function createTempHome(): Promise<string> {
   const tempHome = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mcpmatrix-home-"));
   originalHome = process.env.HOME;
   originalUserProfile = process.env.USERPROFILE;
+  originalAppData = process.env.APPDATA;
+  originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
   process.env.HOME = tempHome;
   process.env.USERPROFILE = tempHome;
+  process.env.APPDATA = path.join(tempHome, "AppData", "Roaming");
+  process.env.XDG_CONFIG_HOME = path.join(tempHome, ".config");
   return trackTempDir(tempHome);
 }
 
 afterEach(async () => {
   process.env.HOME = originalHome;
   process.env.USERPROFILE = originalUserProfile;
+  process.env.APPDATA = originalAppData;
+  process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
 
   while (tempDirs.length > 0) {
     const tempDir = tempDirs.pop();
@@ -71,6 +79,8 @@ scopes:
     expect(report.serverChecks).toHaveLength(1);
     expect(report.serverChecks[0]?.missingEnvVars).toEqual(["GITHUB_TOKEN"]);
     expect(report.serverChecks[0]?.compatibility.codex.supported).toBe(false);
+    expect(report.serverChecks[0]?.compatibility["copilot-cli"].supported).toBe(true);
+    expect(report.serverChecks[0]?.compatibility["copilot-vscode"].supported).toBe(true);
     expect(report.repoChecks.some((check) => check.repoPath === missingRepo && !check.accessible)).toBe(true);
     expect(report.suggestedTags).toHaveLength(1);
     expect(report.suggestedTags[0]?.tag).toBe("node");

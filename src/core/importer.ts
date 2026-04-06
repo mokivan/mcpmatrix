@@ -13,11 +13,15 @@ import { writeFileAtomic } from "../utils/backup";
 import {
   getClaudeConfigPath,
   getCodexConfigPath,
+  getCopilotCliConfigPath,
+  getCopilotVsCodeConfigPath,
   getGeminiConfigPath,
   getGlobalConfigPath,
 } from "../utils/paths";
 import { readTextFile } from "../utils/text";
 import { readClaudeConfig } from "../adapters/claude/writer";
+import { readCopilotCliConfig } from "../adapters/copilot-cli/writer";
+import { readCopilotVsCodeConfig } from "../adapters/copilot-vscode/writer";
 import { readGeminiConfig } from "../adapters/gemini/writer";
 
 type ImportedServerEntry = {
@@ -117,6 +121,32 @@ function parseStringMap(value: unknown, fieldName: string): Record<string, strin
   return Object.fromEntries(
     Object.entries(value).map(([mapKey, mapValue]) => [mapKey, assertString(mapValue, `${fieldName}.${mapKey}`)]),
   );
+}
+
+function parseStringArray(value: unknown, fieldName: string): string[] {
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
+    throw new Error(`Invalid imported ${fieldName}: expected string[]`);
+  }
+
+  return value.map((entry, index) => assertString(entry, `${fieldName}[${index}]`));
+}
+
+function assertAllowedKeys(value: Record<string, unknown>, allowedKeys: string[], fieldName: string): void {
+  const allowedSet = new Set(allowedKeys);
+  const unsupportedKeys = Object.keys(value).filter((key) => !allowedSet.has(key));
+  if (unsupportedKeys.length > 0) {
+    throw new Error(`Invalid imported ${fieldName}: unsupported field(s): ${unsupportedKeys.join(", ")}`);
+  }
+}
+
+function assertNoInputReferences(values: string[], fieldName: string): void {
+  if (values.some((value) => value.includes("${input:"))) {
+    throw new Error(`Invalid imported ${fieldName}: VS Code/Copilot input variables are not representable in canonical config`);
+  }
 }
 
 function parseRemoteAuth(value: unknown, fieldName: string): RemoteAuth | undefined {
@@ -311,17 +341,126 @@ function importGeminiDefinition(name: string, definition: Record<string, unknown
   throw new Error(`Invalid imported gemini.mcpServers.${name}: expected either command or httpUrl`);
 }
 
-function importJsonClientServers(mcpServers: unknown, client: SupportedClient): Record<string, ServerDefinition> {
-  if (mcpServers === undefined) {
+function parseCopilotTools(value: unknown, fieldName: string): void {
+  if (value === undefined) {
+    return;
+  }
+
+  const tools = parseStringArray(value, fieldName);
+  if (tools.length !== 1 || tools[0] !== "*") {
+    throw new Error(`Invalid imported ${fieldName}: only tools [\"*\"] can be normalized into canonical config`);
+  }
+}
+
+function importCopilotCliDefinition(name: string, definition: Record<string, unknown>): ServerDefinition {
+  const fieldName = `copilot-cli.mcpServers.${name}`;
+  const normalizedType =
+    definition.type === undefined ? undefined : assertString(definition.type, `${fieldName}.type`);
+
+  if (normalizedType === "local" || normalizedType === "stdio" || (normalizedType === undefined && "command" in definition)) {
+    assertAllowedKeys(definition, ["type", "command", "args", "env", "tools"], fieldName);
+    if ("url" in definition || "headers" in definition) {
+      throw new Error(`Invalid imported ${fieldName}: stdio server cannot define remote fields`);
+    }
+
+    const command = assertString(definition.command, `${fieldName}.command`);
+    const args = parseArgs(definition.args, `${fieldName}.args`);
+    const env = parseStringMap(definition.env, `${fieldName}.env`);
+    parseCopilotTools(definition.tools, `${fieldName}.tools`);
+    assertNoInputReferences([command, ...args, ...Object.values(env)], fieldName);
+
+    return {
+      transport: "stdio",
+      command,
+      args,
+      env,
+    };
+  }
+
+  if (normalizedType === "http" || normalizedType === "sse") {
+    assertAllowedKeys(definition, ["type", "url", "headers", "tools"], fieldName);
+    if ("command" in definition || "args" in definition || "env" in definition) {
+      throw new Error(`Invalid imported ${fieldName}: remote server cannot define stdio fields`);
+    }
+
+    const url = assertString(definition.url, `${fieldName}.url`);
+    const headers = parseStringMap(definition.headers, `${fieldName}.headers`);
+    parseCopilotTools(definition.tools, `${fieldName}.tools`);
+    assertNoInputReferences([url, ...Object.values(headers)], fieldName);
+
+    return {
+      transport: "remote",
+      protocol: normalizedType,
+      url,
+      headers,
+    };
+  }
+
+  throw new Error(`Invalid imported ${fieldName}.type: expected local, stdio, http, or sse`);
+}
+
+function importCopilotVsCodeDefinition(name: string, definition: Record<string, unknown>): ServerDefinition {
+  const fieldName = `copilot-vscode.servers.${name}`;
+  const normalizedType =
+    definition.type === undefined ? undefined : assertString(definition.type, `${fieldName}.type`);
+
+  if (normalizedType === "stdio" || (normalizedType === undefined && "command" in definition)) {
+    assertAllowedKeys(definition, ["type", "command", "args", "env"], fieldName);
+    if ("url" in definition || "headers" in definition) {
+      throw new Error(`Invalid imported ${fieldName}: stdio server cannot define remote fields`);
+    }
+
+    const command = assertString(definition.command, `${fieldName}.command`);
+    const args = parseArgs(definition.args, `${fieldName}.args`);
+    const env = parseStringMap(definition.env, `${fieldName}.env`);
+    assertNoInputReferences([command, ...args, ...Object.values(env)], fieldName);
+
+    return {
+      transport: "stdio",
+      command,
+      args,
+      env,
+    };
+  }
+
+  if (normalizedType === "http" || normalizedType === "sse") {
+    assertAllowedKeys(definition, ["type", "url", "headers"], fieldName);
+    if ("command" in definition || "args" in definition || "env" in definition) {
+      throw new Error(`Invalid imported ${fieldName}: remote server cannot define stdio fields`);
+    }
+
+    const url = assertString(definition.url, `${fieldName}.url`);
+    const headers = parseStringMap(definition.headers, `${fieldName}.headers`);
+    assertNoInputReferences([url, ...Object.values(headers)], fieldName);
+
+    return {
+      transport: "remote",
+      protocol: normalizedType,
+      url,
+      headers,
+    };
+  }
+
+  throw new Error(`Invalid imported ${fieldName}.type: expected stdio, http, or sse`);
+}
+
+function importJsonClientServers(
+  servers: unknown,
+  client: SupportedClient,
+  options?: { containerName?: string },
+): Record<string, ServerDefinition> {
+  if (servers === undefined) {
     return {};
   }
 
-  if (typeof mcpServers !== "object" || mcpServers === null || Array.isArray(mcpServers)) {
-    throw new Error(`Invalid ${client} mcpServers: expected object`);
+  const containerName = options?.containerName ?? "mcpServers";
+
+  if (typeof servers !== "object" || servers === null || Array.isArray(servers)) {
+    throw new Error(`Invalid ${client} ${containerName}: expected object`);
   }
 
   return Object.fromEntries(
-    Object.entries(mcpServers).map(([name, definition]) => {
+    Object.entries(servers).map(([name, definition]) => {
       if (typeof definition !== "object" || definition === null || Array.isArray(definition)) {
         throw new Error(`Invalid imported ${client} server '${name}': expected object`);
       }
@@ -336,6 +475,14 @@ function importJsonClientServers(mcpServers: unknown, client: SupportedClient): 
         return [name, importGeminiDefinition(name, definitionObject)];
       }
 
+      if (client === "copilot-cli") {
+        return [name, importCopilotCliDefinition(name, definitionObject)];
+      }
+
+      if (client === "copilot-vscode") {
+        return [name, importCopilotVsCodeDefinition(name, definitionObject)];
+      }
+
       throw new Error(`Unsupported JSON client import: ${client}`);
     }),
   );
@@ -346,6 +493,8 @@ export function detectImportSources(): Array<{ client: SupportedClient; filePath
     { client: "codex", filePath: getCodexConfigPath() },
     { client: "claude", filePath: getClaudeConfigPath() },
     { client: "gemini", filePath: getGeminiConfigPath() },
+    { client: "copilot-cli", filePath: getCopilotCliConfigPath() },
+    { client: "copilot-vscode", filePath: getCopilotVsCodeConfigPath() },
   ];
 
   return candidates.filter((candidate) => fs.existsSync(candidate.filePath));
@@ -366,8 +515,18 @@ export async function importExistingConfigs(): Promise<ImportedConfigResult> {
       clientServers = await importCodexServers(source.filePath);
     } else if (source.client === "claude") {
       clientServers = importJsonClientServers((await readClaudeConfig(source.filePath)).mcpServers, source.client);
-    } else {
+    } else if (source.client === "gemini") {
       clientServers = importJsonClientServers((await readGeminiConfig(source.filePath)).mcpServers, source.client);
+    } else if (source.client === "copilot-cli") {
+      const copilotCliConfig = await readCopilotCliConfig(source.filePath);
+      clientServers = importJsonClientServers(copilotCliConfig.mcpServers, source.client);
+    } else {
+      const copilotVsCodeConfig = await readCopilotVsCodeConfig(source.filePath);
+      if (Array.isArray(copilotVsCodeConfig.inputs) && copilotVsCodeConfig.inputs.length > 0) {
+        throw new Error("Invalid imported copilot-vscode.inputs: input variables are not representable in canonical config");
+      }
+
+      clientServers = importJsonClientServers(copilotVsCodeConfig.servers, source.client, { containerName: "servers" });
     }
 
     for (const [serverName, definition] of Object.entries(clientServers)) {

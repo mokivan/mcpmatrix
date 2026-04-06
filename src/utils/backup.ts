@@ -1,7 +1,15 @@
 import fs from "fs";
 import path from "path";
 import type { BackupEntry, ConfigScope, SupportedClient } from "../types";
-import { getBackupsDir, getClaudeConfigPath, getCodexConfigPath, getGeminiConfigPath, normalizeRepoPath } from "./paths";
+import {
+  getBackupsDir,
+  getClaudeConfigPath,
+  getCodexConfigPath,
+  getCopilotCliConfigPath,
+  getCopilotVsCodeConfigPath,
+  getGeminiConfigPath,
+  normalizeRepoPath,
+} from "./paths";
 
 type BackupTarget = {
   client: SupportedClient;
@@ -39,6 +47,16 @@ const LEGACY_TARGETS: Record<SupportedClient, { filePath: string; stem: string; 
   gemini: {
     filePath: getGeminiConfigPath(),
     stem: "settings",
+    extension: ".json",
+  },
+  "copilot-cli": {
+    filePath: getCopilotCliConfigPath(),
+    stem: "mcp-config",
+    extension: ".json",
+  },
+  "copilot-vscode": {
+    filePath: getCopilotVsCodeConfigPath(),
+    stem: "mcp",
     extension: ".json",
   },
 };
@@ -94,6 +112,9 @@ function inferLegacyClientFromFilePath(filePath: string): SupportedClient | null
   }
   if (baseName === "settings.json") {
     return "gemini";
+  }
+  if (baseName === "mcp-config.json") {
+    return "copilot-cli";
   }
 
   return null;

@@ -1,3 +1,4 @@
+import { SUPPORTED_CLIENTS } from "../../core/client-selection";
 import { hasDoctorErrors, runDoctor } from "../../core/doctor";
 import { describeServer } from "../../core/server-config";
 import { logInfo, logWarn } from "../../utils/logger";
@@ -29,7 +30,7 @@ export async function runDoctorCommand(options?: { repo?: string }): Promise<voi
       logWarn(`Server ${check.serverName} is missing env vars: ${check.missingEnvVars.join(", ")}`);
     }
 
-    for (const client of ["codex", "claude", "gemini"] as const) {
+    for (const client of SUPPORTED_CLIENTS) {
       const compatibility = check.compatibility[client];
       if (!compatibility.supported) {
         logWarn(`Server ${check.serverName} is incompatible with ${client}: ${compatibility.reason}`);

@@ -1,11 +1,13 @@
+import { assertSupportedClient } from "../../core/client-selection";
 import type { SupportedClient } from "../../types";
 import { listBackups } from "../../utils/backup";
 import { logInfo } from "../../utils/logger";
 
 export async function runListBackupsCommand(options?: { client?: SupportedClient; repo?: string }): Promise<void> {
+  const selectedClient = assertSupportedClient(options?.client);
   const backups = await listBackups({
     scope: options?.repo ? "repo" : "global",
-    ...(options?.client === undefined ? {} : { client: options.client }),
+    ...(selectedClient === undefined ? {} : { client: selectedClient }),
     ...(options?.repo === undefined ? {} : { repoPath: options.repo }),
   });
 

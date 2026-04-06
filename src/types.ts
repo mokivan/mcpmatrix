@@ -78,7 +78,7 @@ export interface RepoDetectionResult {
   detectionMode: "flag" | "git" | "cwd";
 }
 
-export type SupportedClient = "codex" | "claude" | "gemini";
+export type SupportedClient = "codex" | "claude" | "gemini" | "copilot-cli" | "copilot-vscode";
 
 export interface BackupEntry {
   client: SupportedClient;

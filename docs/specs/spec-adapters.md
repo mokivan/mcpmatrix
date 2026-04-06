@@ -7,6 +7,8 @@ Adapters convert the canonical mcpmatrix configuration into specific formats use
 - Codex CLI
 - Claude Code CLI
 - Gemini CLI
+- GitHub Copilot CLI
+- GitHub Copilot VS Code
 
 ## Adapter Responsibilities
 
@@ -78,6 +80,56 @@ Gemini adapter limitations:
 
 - remote `sse` is not representable
 - remote `headers` and persisted `auth` metadata are not representable
+
+## GitHub Copilot CLI
+
+Files:
+
+- global: `~/.copilot/mcp-config.json`
+- repo-scoped: `<repo>/.github/mcp.json`
+
+Section:
+
+`mcpServers`
+
+Supported output:
+
+- stdio: `type: "local"` with `command`, `args`, `env`, and `tools: ["*"]`
+- remote HTTP: `type: "http"` with `url`, optional `headers`, and `tools: ["*"]`
+- remote SSE: `type: "sse"` with `url`, optional `headers`, and `tools: ["*"]`
+
+GitHub Copilot CLI adapter limitations:
+
+- persisted remote `auth` metadata is not representable
+- canonical tool filtering is not modeled; mcpmatrix always writes `tools: ["*"]`
+
+## GitHub Copilot VS Code
+
+Files:
+
+- global: VS Code default user profile `mcp.json`
+- repo-scoped: `<repo>/.vscode/mcp.json`
+
+Default user profile path:
+
+- Windows: `%APPDATA%/Code/User/mcp.json`
+- macOS: `~/Library/Application Support/Code/User/mcp.json`
+- Linux: `${XDG_CONFIG_HOME:-~/.config}/Code/User/mcp.json`
+
+Section:
+
+`servers`
+
+Supported output:
+
+- stdio: `type: "stdio"` with `command`, optional `args`, and optional `env`
+- remote HTTP: `type: "http"` with `url` and optional `headers`
+- remote SSE: `type: "sse"` with `url` and optional `headers`
+
+GitHub Copilot VS Code adapter limitations:
+
+- persisted remote `auth` metadata is not representable
+- VS Code-specific `inputs`, `envFile`, sandbox, and development-mode fields are outside the canonical model and are preserved only when already present outside the managed `servers` object
 
 ## Adapter Contract
 

@@ -60,6 +60,8 @@ export function getClientCompatibility(server: ServerDefinition): Record<Support
     codex: getCodexCompatibility(server),
     claude: getClaudeCompatibility(server),
     gemini: getGeminiCompatibility(server),
+    "copilot-cli": getCopilotCliCompatibility(server),
+    "copilot-vscode": getCopilotVsCodeCompatibility(server),
   };
 }
 
@@ -114,6 +116,30 @@ function getGeminiCompatibility(server: ServerDefinition): ClientCompatibilityCh
 
   if (server.auth && server.auth.type !== "none") {
     return { supported: false, reason: "Gemini config does not support persisted remote MCP auth metadata" };
+  }
+
+  return { supported: true, reason: null };
+}
+
+function getCopilotCliCompatibility(server: ServerDefinition): ClientCompatibilityCheck {
+  if (server.transport === "stdio") {
+    return { supported: true, reason: null };
+  }
+
+  if (server.auth && server.auth.type !== "none") {
+    return { supported: false, reason: "Copilot CLI config does not support persisted remote MCP auth metadata" };
+  }
+
+  return { supported: true, reason: null };
+}
+
+function getCopilotVsCodeCompatibility(server: ServerDefinition): ClientCompatibilityCheck {
+  if (server.transport === "stdio") {
+    return { supported: true, reason: null };
+  }
+
+  if (server.auth && server.auth.type !== "none") {
+    return { supported: false, reason: "VS Code mcp.json does not support persisted remote MCP auth metadata" };
   }
 
   return { supported: true, reason: null };

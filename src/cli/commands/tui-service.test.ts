@@ -95,6 +95,8 @@ describe("tui-service", () => {
             codex: { supported: true, reason: null },
             claude: { supported: true, reason: null },
             gemini: { supported: true, reason: null },
+            "copilot-cli": { supported: true, reason: null },
+            "copilot-vscode": { supported: true, reason: null },
           },
           missingEnvVars: [],
         },

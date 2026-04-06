@@ -10,6 +10,7 @@ import { runRollbackCommand } from "./commands/rollback";
 import { runSchemaCommand } from "./commands/schema";
 import { runTuiCommand } from "./commands/tui";
 import { runValidateCommand } from "./commands/validate";
+import type { SupportedClient } from "../types";
 import { logError } from "../utils/logger";
 import { getPackageVersion } from "../utils/package-metadata";
 
@@ -45,7 +46,7 @@ async function main(): Promise<void> {
     .description("List detected backups under ~/.mcpmatrix/backups/")
     .option("--client <client>", "Filter backups by client")
     .option("--repo <path>", "List repo-scoped backups for a specific repository")
-    .action(async (options: { client?: "codex" | "claude" | "gemini"; repo?: string }) => {
+    .action(async (options: { client?: SupportedClient; repo?: string }) => {
       await runListBackupsCommand(options);
     });
 
@@ -87,7 +88,7 @@ async function main(): Promise<void> {
     .option("--client <client>", "Restore only one client config")
     .option("--backup <backup>", "Restore a specific backup file by name or path")
     .option("--repo <path>", "Restore repo-scoped backups for a specific repository")
-    .action(async (options: { client?: "codex" | "claude" | "gemini"; backup?: string; repo?: string }) => {
+    .action(async (options: { client?: SupportedClient; backup?: string; repo?: string }) => {
       await runRollbackCommand(options);
     });
 

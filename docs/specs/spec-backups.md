@@ -16,6 +16,10 @@ Supported targets:
 - repo Claude Code: `claude-repo-YYYY-MM-DD-HH-MM(.suffix).json`
 - global Gemini: `gemini-global-YYYY-MM-DD-HH-MM(.suffix).json`
 - repo Gemini: `gemini-repo-YYYY-MM-DD-HH-MM(.suffix).json`
+- global GitHub Copilot CLI: `copilot-cli-global-YYYY-MM-DD-HH-MM(.suffix).json`
+- repo GitHub Copilot CLI: `copilot-cli-repo-YYYY-MM-DD-HH-MM(.suffix).json`
+- global GitHub Copilot VS Code: `copilot-vscode-global-YYYY-MM-DD-HH-MM(.suffix).json`
+- repo GitHub Copilot VS Code: `copilot-vscode-repo-YYYY-MM-DD-HH-MM(.suffix).json`
 
 Each backup also stores metadata for the exact live target path and, for repo-scoped backups, the repo path.
 
@@ -29,7 +33,7 @@ Retention:
 
 Command:
 
-`mcpmatrix backups list [--client <codex|claude|gemini>] [--repo <path>]`
+`mcpmatrix backups list [--client <codex|claude|gemini|copilot-cli|copilot-vscode>] [--repo <path>]`
 
 Behavior:
 
@@ -43,7 +47,7 @@ Behavior:
 
 Command:
 
-`mcpmatrix rollback [--client <codex|claude|gemini>] [--backup <name-or-path>] [--repo <path>]`
+`mcpmatrix rollback [--client <codex|claude|gemini|copilot-cli|copilot-vscode>] [--backup <name-or-path>] [--repo <path>]`
 
 Default behavior:
 

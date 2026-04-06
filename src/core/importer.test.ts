@@ -3,19 +3,26 @@ import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { importExistingConfigs, writeImportedConfig } from "./importer";
+import { getCopilotVsCodeConfigPath } from "../utils/paths";
 
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
 let originalUserProfile: string | undefined;
+let originalAppData: string | undefined;
+let originalXdgConfigHome: string | undefined;
 
 beforeEach(() => {
   originalHome = process.env.HOME;
   originalUserProfile = process.env.USERPROFILE;
+  originalAppData = process.env.APPDATA;
+  originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
 });
 
 afterEach(async () => {
   process.env.HOME = originalHome;
   process.env.USERPROFILE = originalUserProfile;
+  process.env.APPDATA = originalAppData;
+  process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
 
   while (tempDirs.length > 0) {
     const tempDir = tempDirs.pop();
@@ -30,6 +37,8 @@ async function createTempHome(): Promise<string> {
   tempDirs.push(tempHome);
   process.env.HOME = tempHome;
   process.env.USERPROFILE = tempHome;
+  process.env.APPDATA = path.join(tempHome, "AppData", "Roaming");
+  process.env.XDG_CONFIG_HOME = path.join(tempHome, ".config");
   return tempHome;
 }
 
@@ -193,6 +202,131 @@ args = ["-y", "@modelcontextprotocol/server-github"]
 
     expect(imported.importedSources.map((source) => source.client)).toEqual(["claude"]);
     expect(imported.config.servers.github.transport).toBe("stdio");
+  });
+
+  it("imports copilot-cli and copilot-vscode global configs", async () => {
+    const homeDir = await createTempHome();
+    const vscodeConfigPath = getCopilotVsCodeConfigPath();
+
+    await fs.promises.mkdir(path.join(homeDir, ".copilot"), { recursive: true });
+    await fs.promises.writeFile(
+      path.join(homeDir, ".copilot", "mcp-config.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            playwright: {
+              type: "local",
+              command: "npx",
+              args: ["@playwright/mcp@latest"],
+              env: {},
+              tools: ["*"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    await fs.promises.mkdir(path.dirname(vscodeConfigPath), { recursive: true });
+    await fs.promises.writeFile(
+      vscodeConfigPath,
+      JSON.stringify(
+        {
+          servers: {
+            context7: {
+              type: "http",
+              url: "https://mcp.context7.com/mcp",
+              headers: {
+                CONTEXT7_API_KEY: "${env:CONTEXT7_API_KEY}",
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const imported = await importExistingConfigs();
+
+    expect(imported.importedSources.map((source) => source.client)).toEqual(["copilot-cli", "copilot-vscode"]);
+    expect(imported.config.servers.playwright).toEqual({
+      transport: "stdio",
+      command: "npx",
+      args: ["@playwright/mcp@latest"],
+      env: {},
+    });
+    expect(imported.config.servers.context7).toEqual({
+      transport: "remote",
+      protocol: "http",
+      url: "https://mcp.context7.com/mcp",
+      headers: {
+        CONTEXT7_API_KEY: "${env:CONTEXT7_API_KEY}",
+      },
+    });
+  });
+
+  it("rejects copilot-cli tool filtering because it is not representable canonically", async () => {
+    const homeDir = await createTempHome();
+
+    await fs.promises.mkdir(path.join(homeDir, ".copilot"), { recursive: true });
+    await fs.promises.writeFile(
+      path.join(homeDir, ".copilot", "mcp-config.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            playwright: {
+              type: "local",
+              command: "npx",
+              args: ["@playwright/mcp@latest"],
+              env: {},
+              tools: ["browser_navigate"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    await expect(importExistingConfigs()).rejects.toThrow("only tools [\"*\"] can be normalized");
+  });
+
+  it("rejects copilot-vscode inputs because they are not representable canonically", async () => {
+    await createTempHome();
+    const vscodeConfigPath = getCopilotVsCodeConfigPath();
+
+    await fs.promises.mkdir(path.dirname(vscodeConfigPath), { recursive: true });
+    await fs.promises.writeFile(
+      vscodeConfigPath,
+      JSON.stringify(
+        {
+          inputs: [
+            {
+              type: "promptString",
+              id: "api-key",
+              description: "API key",
+              password: true,
+            },
+          ],
+          servers: {
+            context7: {
+              type: "http",
+              url: "https://mcp.context7.com/mcp",
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    await expect(importExistingConfigs()).rejects.toThrow("copilot-vscode.inputs");
   });
 
   it("merges identical imported definitions regardless of key order", async () => {

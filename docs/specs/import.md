@@ -6,7 +6,7 @@ Canonical spec:
 
 Summary:
 
-- `mcpmatrix import` reads Codex, Claude Code, and Gemini MCP configs from the user home directory
+- `mcpmatrix import` reads Codex, Claude Code, Gemini, GitHub Copilot CLI, and GitHub Copilot VS Code MCP configs from supported global user locations
 - output is `~/.mcpmatrix/config.yml`
 - imported servers populate `servers` and `scopes.global.enable`
 - stdio and supported remote client entries are normalized into the canonical transport model

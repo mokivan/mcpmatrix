@@ -50,6 +50,36 @@ export function getRepoGeminiConfigPath(repoPath: string): string {
   return path.join(repoPath, ".gemini", "settings.json");
 }
 
+export function getCopilotCliConfigPath(): string {
+  return path.join(getHomeDir(), ".copilot", "mcp-config.json");
+}
+
+export function getRepoCopilotCliConfigPath(repoPath: string): string {
+  return path.join(repoPath, ".github", "mcp.json");
+}
+
+function getVsCodeUserDir(): string {
+  if (process.platform === "win32") {
+    const appDataDir = process.env.APPDATA ?? path.join(getHomeDir(), "AppData", "Roaming");
+    return path.join(appDataDir, "Code", "User");
+  }
+
+  if (process.platform === "darwin") {
+    return path.join(getHomeDir(), "Library", "Application Support", "Code", "User");
+  }
+
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME ?? path.join(getHomeDir(), ".config");
+  return path.join(xdgConfigHome, "Code", "User");
+}
+
+export function getCopilotVsCodeConfigPath(): string {
+  return path.join(getVsCodeUserDir(), "mcp.json");
+}
+
+export function getRepoCopilotVsCodeConfigPath(repoPath: string): string {
+  return path.join(repoPath, ".vscode", "mcp.json");
+}
+
 function isWindowsStyleAbsolutePath(inputPath: string): boolean {
   return /^[a-zA-Z]:[\\/]/.test(inputPath) || /^\\\\/.test(inputPath);
 }

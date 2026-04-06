@@ -1,5 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { normalizeRepoPath } from "./paths";
+import os from "os";
+import path from "path";
+import { describe, expect, it, vi } from "vitest";
+import {
+  getCopilotCliConfigPath,
+  getCopilotVsCodeConfigPath,
+  getRepoCopilotCliConfigPath,
+  getRepoCopilotVsCodeConfigPath,
+  normalizeRepoPath,
+} from "./paths";
 
 describe("normalizeRepoPath", () => {
   it("normalizes Windows-style paths consistently", () => {
@@ -12,5 +20,22 @@ describe("normalizeRepoPath", () => {
 
   it("resolves relative paths from the current working directory", () => {
     expect(normalizeRepoPath(".")).toBe(normalizeRepoPath(process.cwd()));
+  });
+
+  it("returns the expected copilot repo-scoped config paths", () => {
+    expect(getRepoCopilotCliConfigPath("/repo")).toBe(path.join("/repo", ".github", "mcp.json"));
+    expect(getRepoCopilotVsCodeConfigPath("/repo")).toBe(path.join("/repo", ".vscode", "mcp.json"));
+  });
+
+  it("returns the expected global copilot config paths on windows", () => {
+    const platformSpy = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    const originalAppData = process.env.APPDATA;
+    process.env.APPDATA = "C:\\Users\\ivan_\\AppData\\Roaming";
+
+    expect(getCopilotCliConfigPath()).toBe(path.join(os.homedir(), ".copilot", "mcp-config.json"));
+    expect(getCopilotVsCodeConfigPath()).toBe(path.join("C:\\Users\\ivan_\\AppData\\Roaming", "Code", "User", "mcp.json"));
+
+    platformSpy.mockRestore();
+    process.env.APPDATA = originalAppData;
   });
 });

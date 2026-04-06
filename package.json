@@ -2,13 +2,15 @@
   "name": "@mokivan/mcpmatrix",
   "version": "2.0.4",
   "license": "MIT",
-  "description": "Define MCP servers once and generate configs for Codex, Claude Code, and Gemini from a canonical MCP configuration",
+  "description": "Define MCP servers once and generate configs for Codex, Claude Code, Gemini, and GitHub Copilot from a canonical MCP configuration",
   "type": "commonjs",
   "keywords": [
     "mcp",
     "codex",
     "claude",
     "gemini",
+    "copilot",
+    "vscode",
     "cli",
     "config"
   ],

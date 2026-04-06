@@ -7,6 +7,8 @@ This version supports:
 - Codex CLI
 - Claude Code CLI
 - Gemini CLI
+- GitHub Copilot CLI
+- GitHub Copilot VS Code
 - config import from existing client files
 - explicit config validation
 - `doctor` diagnostics
@@ -107,6 +109,8 @@ Detected sources:
 - Codex: `~/.codex/config.toml`
 - Claude Code: `~/.claude.json`
 - Gemini: `~/.gemini/settings.json`
+- GitHub Copilot CLI: `~/.copilot/mcp-config.json`
+- GitHub Copilot VS Code: default user profile `mcp.json`
 
 Import rules:
 
@@ -116,6 +120,8 @@ Import rules:
 - Codex imports `command` as `transport: stdio` and `url` as `transport: remote`
 - Claude imports stdio, remote HTTP, and remote SSE entries
 - Gemini imports stdio and remote HTTP entries using `httpUrl`
+- GitHub Copilot CLI imports stdio plus remote HTTP and SSE entries from `mcpServers`; `tools` must be `["*"]`
+- GitHub Copilot VS Code imports stdio plus remote HTTP and SSE entries from `servers`; configs using `inputs` or other VS Code-only MCP metadata are rejected
 - conflicting canonical definitions for the same server name cause import to fail
 
 ## Commands
@@ -154,7 +160,7 @@ Runs a fuller diagnostic pass:
 - configured repo paths are accessible
 - the detected repo can be resolved and inspected
 - stack files suggest tags without modifying config automatically
-- compatibility is reported for Codex, Claude, and Gemini
+- compatibility is reported for Codex, Claude, Gemini, GitHub Copilot CLI, and GitHub Copilot VS Code
 
 Suggested stack tags:
 
@@ -192,19 +198,25 @@ Client outputs:
 - Claude Code repo-scoped: `<repo>/.mcp.json`
 - Gemini global: `~/.gemini/settings.json`
 - Gemini repo-scoped: `<repo>/.gemini/settings.json`
+- GitHub Copilot CLI global: `~/.copilot/mcp-config.json`
+- GitHub Copilot CLI repo-scoped: `<repo>/.github/mcp.json`
+- GitHub Copilot VS Code global: VS Code default user profile `mcp.json`
+- GitHub Copilot VS Code repo-scoped: `<repo>/.vscode/mcp.json`
 
 Write behavior:
 
 - by default, `apply` targets all supported clients
 - `--clients auto` targets only clients with an existing managed config file or a detected CLI command in `PATH`
-- `--clients codex,claude` targets only the named clients
+- `--clients codex,claude,copilot-cli,copilot-vscode` targets only the named clients
 - global scope writes only servers resolved from `scopes.global.enable`
 - repo scope writes only servers resolved from the matched repo's `tags` and `enable`, excluding names already active globally
 - Codex updates only a managed `mcpmatrix` block inside each `config.toml`, using named TOML tables under `mcp_servers`
 - Claude updates only the `mcpServers` section inside `.claude.json` and `.mcp.json`
 - Gemini updates only the `mcpServers` section inside `settings.json`
+- GitHub Copilot CLI updates only the `mcpServers` section inside `mcp-config.json` and `.github/mcp.json`, writing `tools: ["*"]`
+- GitHub Copilot VS Code updates only the `servers` section inside `mcp.json`
 - stdio and supported remote transports are rendered per client format
-- `apply` fails before writing if any active server cannot be represented by Codex, Claude, or Gemini
+- `apply` fails before writing if any active server cannot be represented by one of the selected clients
 - existing content outside those managed areas is preserved
 - existing files are backed up before overwrite
 - `apply` is transactional across all selected targets: either all global and repo-scoped files are updated or the previous state is restored
@@ -226,7 +238,7 @@ Compatibility note:
 
 - mcpmatrix tolerates UTF-8 BOM-prefixed YAML, TOML, and JSON config files when loading canonical config or importing/updating client configs
 
-### `mcpmatrix backups list [--client <codex|claude|gemini>] [--repo <path>]`
+### `mcpmatrix backups list [--client <codex|claude|gemini|copilot-cli|copilot-vscode>] [--repo <path>]`
 
 Lists versioned backups stored in `~/.mcpmatrix/backups/`.
 
@@ -241,13 +253,13 @@ Output includes:
 
 If no backups exist, the command prints an empty-state message and exits successfully.
 
-### `mcpmatrix rollback [--client <codex|claude|gemini>] [--backup <name-or-path>] [--repo <path>]`
+### `mcpmatrix rollback [--client <codex|claude|gemini|copilot-cli|copilot-vscode>] [--backup <name-or-path>] [--repo <path>]`
 
 Restores versioned backups into the live client config files.
 
 Behavior:
 
-- without flags, restores the latest global backup for Codex, Claude, and Gemini
+- without flags, restores the latest global backup for every supported client
 - with `--client`, restores only the latest backup for that client in the selected scope
 - with `--repo`, restores the latest repo-scoped backups for that repository
 - with `--backup`, restores a specific backup file by base name from `~/.mcpmatrix/backups/` or by absolute path
@@ -382,7 +394,7 @@ The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions,
 ## Compatibility
 
 - supported runtime: Node.js `20+`
-- supported clients: Codex CLI, Claude Code CLI, Gemini CLI
+- supported clients: Codex CLI, Claude Code CLI, Gemini CLI, GitHub Copilot CLI, GitHub Copilot VS Code
 - semver applies to the documented CLI only
 - importing package internals is outside the support contract and may break without notice
 
@@ -391,8 +403,9 @@ The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions,
 - `validate` failing on a command usually means the executable is not available in local `PATH` or is not an executable file path
 - `validate` failing on a remote server usually means the `url`, `protocol`, or `auth` block is malformed
 - `doctor` fails when a referenced env var is missing or a configured repo path no longer exists
-- `doctor` also reports active servers that cannot be applied to Codex, Claude, or Gemini
+- `doctor` also reports active servers that cannot be applied to one or more supported clients, including GitHub Copilot CLI and GitHub Copilot VS Code
 - `import` fails when `~/.mcpmatrix/config.yml` already exists or when the same server name has conflicting canonical definitions across clients
+- `import` also fails for Copilot/VS Code configs that use `tools` filtering, `inputs`, or other MCP metadata that cannot be normalized into the canonical model
 - `apply` failures should restore the previous client state; inspect the reported target path and backup files if the error persists
 - if a client config contains a UTF-8 BOM on Windows, mcpmatrix should still parse it correctly; if it does not, treat that as a bug
 - use `mcpmatrix backups list` to inspect available restore points before running `mcpmatrix rollback`

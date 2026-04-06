@@ -9,6 +9,8 @@ The command checks these files in the user home directory:
 - `~/.codex/config.toml`
 - `~/.claude.json`
 - `~/.gemini/settings.json`
+- `~/.copilot/mcp-config.json`
+- VS Code default user profile `mcp.json`
 
 Only existing files are imported.
 
@@ -66,6 +68,45 @@ Supported import shapes:
 - stdio: `command`
 - remote HTTP: `httpUrl`
 
+## GitHub Copilot CLI Input
+
+GitHub Copilot CLI MCP servers are read from:
+
+`mcpServers`
+
+Supported import shapes:
+
+- stdio: `type: "local"` or `type: "stdio"` with `command`
+- remote HTTP: `type: "http"` with `url`
+- remote SSE: `type: "sse"` with `url`
+
+Accepted optional fields:
+
+- `args`
+- `env`
+- `headers`
+- `tools` only when the value is exactly `["*"]`
+
+## GitHub Copilot VS Code Input
+
+VS Code MCP servers are read from:
+
+`servers`
+
+Supported import shapes:
+
+- stdio: `type: "stdio"` with `command`
+- remote HTTP: `type: "http"` with `url`
+- remote SSE: `type: "sse"` with `url`
+
+Accepted optional fields:
+
+- `args`
+- `env`
+- `headers`
+
+Unsupported VS Code MCP fields such as `inputs`, `envFile`, sandbox, and development-mode metadata make import fail because they are not representable in the canonical config.
+
 ## Conflict Rules
 
 If the same server name is detected in more than one client file:
@@ -82,4 +123,5 @@ If the same server name is detected in more than one client file:
 - supported client files exist but none define MCP servers
 - an imported client file is invalid for its format
 - an imported server definition is incomplete or malformed
+- an imported Copilot or VS Code server definition contains MCP metadata that cannot be normalized into the canonical model
 - the same server name resolves to conflicting definitions across clients

@@ -36,6 +36,8 @@ describe("rollbackToBackup", () => {
       { client: "codex", filePath: "/tmp/codex.toml", stem: "config", extension: ".toml" },
       { client: "claude", filePath: "/tmp/claude.json", stem: "claude", extension: ".json" },
       { client: "gemini", filePath: "/tmp/gemini.json", stem: "settings", extension: ".json" },
+      { client: "copilot-cli", filePath: "/tmp/copilot-mcp.json", stem: "mcp-config", extension: ".json" },
+      { client: "copilot-vscode", filePath: "/tmp/vscode-mcp.json", stem: "mcp", extension: ".json" },
     ]);
     mocks.existsSync.mockReturnValue(true);
     mocks.readFile.mockImplementation(async (filePath: string) => Buffer.from(`contents:${filePath}`));
@@ -47,12 +49,20 @@ describe("rollbackToBackup", () => {
     mocks.getLatestBackup
       .mockResolvedValueOnce({ client: "codex", scope: "global", filePath: "/tmp/codex.toml", backupPath: "/bak/config.toml", backupFileName: "config-1.toml", timestamp: "2026-01-01-10-00" })
       .mockResolvedValueOnce({ client: "claude", scope: "global", filePath: "/tmp/claude.json", backupPath: "/bak/claude.json", backupFileName: "claude-1.json", timestamp: "2026-01-01-10-00" })
-      .mockResolvedValueOnce({ client: "gemini", scope: "global", filePath: "/tmp/gemini.json", backupPath: "/bak/settings.json", backupFileName: "settings-1.json", timestamp: "2026-01-01-10-00" });
+      .mockResolvedValueOnce({ client: "gemini", scope: "global", filePath: "/tmp/gemini.json", backupPath: "/bak/settings.json", backupFileName: "settings-1.json", timestamp: "2026-01-01-10-00" })
+      .mockResolvedValueOnce({ client: "copilot-cli", scope: "global", filePath: "/tmp/copilot-mcp.json", backupPath: "/bak/copilot-mcp.json", backupFileName: "copilot-cli-1.json", timestamp: "2026-01-01-10-00" })
+      .mockResolvedValueOnce({ client: "copilot-vscode", scope: "global", filePath: "/tmp/vscode-mcp.json", backupPath: "/bak/vscode-mcp.json", backupFileName: "copilot-vscode-1.json", timestamp: "2026-01-01-10-00" });
 
     const result = await rollbackToBackup();
 
-    expect(result.targets.map((target) => target.client)).toEqual(["codex", "claude", "gemini"]);
-    expect(mocks.writeFileAtomic).toHaveBeenCalledTimes(3);
+    expect(result.targets.map((target) => target.client)).toEqual([
+      "codex",
+      "claude",
+      "gemini",
+      "copilot-cli",
+      "copilot-vscode",
+    ]);
+    expect(mocks.writeFileAtomic).toHaveBeenCalledTimes(5);
   });
 
   it("fails before mutating files when a required latest backup is missing", async () => {
@@ -106,7 +116,9 @@ describe("rollbackToBackup", () => {
     mocks.getLatestBackup
       .mockResolvedValueOnce({ client: "codex", scope: "global", filePath: "/tmp/codex.toml", backupPath: "/bak/config.toml", backupFileName: "config-1.toml", timestamp: "2026-01-01-10-00" })
       .mockResolvedValueOnce({ client: "claude", scope: "global", filePath: "/tmp/claude.json", backupPath: "/bak/claude.json", backupFileName: "claude-1.json", timestamp: "2026-01-01-10-00" })
-      .mockResolvedValueOnce({ client: "gemini", scope: "global", filePath: "/tmp/gemini.json", backupPath: "/bak/settings.json", backupFileName: "settings-1.json", timestamp: "2026-01-01-10-00" });
+      .mockResolvedValueOnce({ client: "gemini", scope: "global", filePath: "/tmp/gemini.json", backupPath: "/bak/settings.json", backupFileName: "settings-1.json", timestamp: "2026-01-01-10-00" })
+      .mockResolvedValueOnce({ client: "copilot-cli", scope: "global", filePath: "/tmp/copilot-mcp.json", backupPath: "/bak/copilot-mcp.json", backupFileName: "copilot-cli-1.json", timestamp: "2026-01-01-10-00" })
+      .mockResolvedValueOnce({ client: "copilot-vscode", scope: "global", filePath: "/tmp/vscode-mcp.json", backupPath: "/bak/vscode-mcp.json", backupFileName: "copilot-vscode-1.json", timestamp: "2026-01-01-10-00" });
     mocks.writeFileAtomic
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error("disk full"))
@@ -120,7 +132,9 @@ describe("rollbackToBackup", () => {
     mocks.getLatestBackup
       .mockResolvedValueOnce({ client: "codex", scope: "repo", filePath: "/repo/.codex/config.toml", backupPath: "/bak/codex-repo.toml", backupFileName: "codex-repo-1.toml", timestamp: "2026-01-01-10-00", repoPath: "/repo" })
       .mockResolvedValueOnce({ client: "claude", scope: "repo", filePath: "/repo/.mcp.json", backupPath: "/bak/claude-repo.json", backupFileName: "claude-repo-1.json", timestamp: "2026-01-01-10-00", repoPath: "/repo" })
-      .mockResolvedValueOnce({ client: "gemini", scope: "repo", filePath: "/repo/.gemini/settings.json", backupPath: "/bak/gemini-repo.json", backupFileName: "gemini-repo-1.json", timestamp: "2026-01-01-10-00", repoPath: "/repo" });
+      .mockResolvedValueOnce({ client: "gemini", scope: "repo", filePath: "/repo/.gemini/settings.json", backupPath: "/bak/gemini-repo.json", backupFileName: "gemini-repo-1.json", timestamp: "2026-01-01-10-00", repoPath: "/repo" })
+      .mockResolvedValueOnce({ client: "copilot-cli", scope: "repo", filePath: "/repo/.github/mcp.json", backupPath: "/bak/copilot-cli-repo.json", backupFileName: "copilot-cli-repo-1.json", timestamp: "2026-01-01-10-00", repoPath: "/repo" })
+      .mockResolvedValueOnce({ client: "copilot-vscode", scope: "repo", filePath: "/repo/.vscode/mcp.json", backupPath: "/bak/copilot-vscode-repo.json", backupFileName: "copilot-vscode-repo-1.json", timestamp: "2026-01-01-10-00", repoPath: "/repo" });
 
     const result = await rollbackToBackup({ repoPath: "/repo" });
 
@@ -128,6 +142,8 @@ describe("rollbackToBackup", () => {
       "codex:repo",
       "claude:repo",
       "gemini:repo",
+      "copilot-cli:repo",
+      "copilot-vscode:repo",
     ]);
   });
 });

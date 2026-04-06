@@ -3,14 +3,30 @@ import type { SupportedClient } from "../types";
 import { commandExists } from "./config-validator";
 import {
   getClaudeConfigPath,
+  getCopilotCliConfigPath,
+  getCopilotVsCodeConfigPath,
   getCodexConfigPath,
   getGeminiConfigPath,
   getRepoClaudeConfigPath,
+  getRepoCopilotCliConfigPath,
+  getRepoCopilotVsCodeConfigPath,
   getRepoCodexConfigPath,
   getRepoGeminiConfigPath,
 } from "../utils/paths";
 
-export const SUPPORTED_CLIENTS: SupportedClient[] = ["codex", "claude", "gemini"];
+export const SUPPORTED_CLIENTS: SupportedClient[] = ["codex", "claude", "gemini", "copilot-cli", "copilot-vscode"];
+
+export function assertSupportedClient(client: string | undefined): SupportedClient | undefined {
+  if (client === undefined) {
+    return undefined;
+  }
+
+  if (!SUPPORTED_CLIENTS.includes(client as SupportedClient)) {
+    throw new Error(`Unsupported client: ${client}`);
+  }
+
+  return client as SupportedClient;
+}
 
 type ClientSelectionMode = "all" | "auto" | "explicit";
 
@@ -33,6 +49,8 @@ const CLIENT_COMMANDS: Record<SupportedClient, string[]> = {
   codex: ["codex"],
   claude: ["claude"],
   gemini: ["gemini"],
+  "copilot-cli": ["copilot"],
+  "copilot-vscode": ["code"],
 };
 
 function getClientConfigPaths(client: SupportedClient, repoPath?: string, matchedRepo?: boolean): string[] {
@@ -44,7 +62,19 @@ function getClientConfigPaths(client: SupportedClient, repoPath?: string, matche
     return matchedRepo ? [getClaudeConfigPath(), getRepoClaudeConfigPath(repoPath ?? "")] : [getClaudeConfigPath()];
   }
 
-  return matchedRepo ? [getGeminiConfigPath(), getRepoGeminiConfigPath(repoPath ?? "")] : [getGeminiConfigPath()];
+  if (client === "gemini") {
+    return matchedRepo ? [getGeminiConfigPath(), getRepoGeminiConfigPath(repoPath ?? "")] : [getGeminiConfigPath()];
+  }
+
+  if (client === "copilot-cli") {
+    return matchedRepo
+      ? [getCopilotCliConfigPath(), getRepoCopilotCliConfigPath(repoPath ?? "")]
+      : [getCopilotCliConfigPath()];
+  }
+
+  return matchedRepo
+    ? [getCopilotVsCodeConfigPath(), getRepoCopilotVsCodeConfigPath(repoPath ?? "")]
+    : [getCopilotVsCodeConfigPath()];
 }
 
 function getConfiguredPaths(paths: string[]): string[] {

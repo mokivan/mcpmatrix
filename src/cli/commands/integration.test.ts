@@ -8,11 +8,19 @@ import { runInitCommand } from "./init";
 import { runPlanCommand } from "./plan";
 import { runRollbackCommand } from "./rollback";
 import { runSchemaCommand } from "./schema";
-import { getBackupsDir } from "../../utils/paths";
+import {
+  getBackupsDir,
+  getCopilotCliConfigPath,
+  getCopilotVsCodeConfigPath,
+  getRepoCopilotCliConfigPath,
+  getRepoCopilotVsCodeConfigPath,
+} from "../../utils/paths";
 
 const tempDirs: string[] = [];
 let originalHome: string | undefined;
 let originalUserProfile: string | undefined;
+let originalAppData: string | undefined;
+let originalXdgConfigHome: string | undefined;
 let logSpy: ReturnType<typeof vi.spyOn>;
 let warnSpy: ReturnType<typeof vi.spyOn>;
 
@@ -26,6 +34,8 @@ async function createTempHome(): Promise<string> {
   trackTempDir(tempHome);
   process.env.HOME = tempHome;
   process.env.USERPROFILE = tempHome;
+  process.env.APPDATA = path.join(tempHome, "AppData", "Roaming");
+  process.env.XDG_CONFIG_HOME = path.join(tempHome, ".config");
   return tempHome;
 }
 
@@ -44,6 +54,8 @@ async function createRepoDir(): Promise<string> {
 beforeEach(() => {
   originalHome = process.env.HOME;
   originalUserProfile = process.env.USERPROFILE;
+  originalAppData = process.env.APPDATA;
+  originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
   logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
   warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 });
@@ -53,6 +65,8 @@ afterEach(async () => {
   warnSpy.mockRestore();
   process.env.HOME = originalHome;
   process.env.USERPROFILE = originalUserProfile;
+  process.env.APPDATA = originalAppData;
+  process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
 
   while (tempDirs.length > 0) {
     const tempDir = tempDirs.pop();
@@ -106,6 +120,8 @@ scopes:
     expect(logSpy.mock.calls.flat().join("\n")).toContain("Active servers:");
     expect(logSpy.mock.calls.flat().join("\n")).toContain("- github [stdio] npx -y @modelcontextprotocol/server-github");
     expect(logSpy.mock.calls.flat().join("\n")).toContain(path.join(homeDir, ".codex", "config.toml"));
+    expect(logSpy.mock.calls.flat().join("\n")).toContain(getCopilotCliConfigPath());
+    expect(logSpy.mock.calls.flat().join("\n")).toContain(getCopilotVsCodeConfigPath());
     expect(warnSpy.mock.calls.flat().join("\n")).toContain("Repository is not configured");
   });
 
@@ -115,9 +131,13 @@ scopes:
     const codexPath = path.join(homeDir, ".codex", "config.toml");
     const claudePath = path.join(homeDir, ".claude.json");
     const geminiPath = path.join(homeDir, ".gemini", "settings.json");
+    const copilotCliPath = getCopilotCliConfigPath();
+    const copilotVsCodePath = getCopilotVsCodeConfigPath();
     const repoCodexPath = path.join(repoDir, ".codex", "config.toml");
     const repoClaudePath = path.join(repoDir, ".mcp.json");
     const repoGeminiPath = path.join(repoDir, ".gemini", "settings.json");
+    const repoCopilotCliPath = getRepoCopilotCliConfigPath(repoDir);
+    const repoCopilotVsCodePath = getRepoCopilotVsCodeConfigPath(repoDir);
 
     await writeUserConfig(
       homeDir,
@@ -141,9 +161,13 @@ scopes:
 
     await fs.promises.mkdir(path.dirname(codexPath), { recursive: true });
     await fs.promises.mkdir(path.dirname(geminiPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(copilotCliPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(copilotVsCodePath), { recursive: true });
     await fs.promises.writeFile(codexPath, 'model = "gpt-5"\n', "utf8");
     await fs.promises.writeFile(claudePath, '{\n  "theme": "dark"\n}\n', "utf8");
     await fs.promises.writeFile(geminiPath, '{\n  "theme": "light"\n}\n', "utf8");
+    await fs.promises.writeFile(copilotCliPath, '{\n  "theme": "dark"\n}\n', "utf8");
+    await fs.promises.writeFile(copilotVsCodePath, '{\n  "inputs": []\n}\n', "utf8");
 
     await runApplyCommand({ repo: repoDir });
 
@@ -156,11 +180,25 @@ scopes:
       theme: string;
       mcpServers: Record<string, unknown>;
     };
+    const copilotCliContent = JSON.parse(await fs.promises.readFile(copilotCliPath, "utf8")) as {
+      theme: string;
+      mcpServers: Record<string, unknown>;
+    };
+    const copilotVsCodeContent = JSON.parse(await fs.promises.readFile(copilotVsCodePath, "utf8")) as {
+      inputs: unknown[];
+      servers: Record<string, unknown>;
+    };
     const repoClaudeContent = JSON.parse(await fs.promises.readFile(repoClaudePath, "utf8")) as {
       mcpServers: Record<string, unknown>;
     };
     const repoGeminiContent = JSON.parse(await fs.promises.readFile(repoGeminiPath, "utf8")) as {
       mcpServers: Record<string, unknown>;
+    };
+    const repoCopilotCliContent = JSON.parse(await fs.promises.readFile(repoCopilotCliPath, "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    const repoCopilotVsCodeContent = JSON.parse(await fs.promises.readFile(repoCopilotVsCodePath, "utf8")) as {
+      servers: Record<string, unknown>;
     };
     const repoCodexContent = await fs.promises.readFile(repoCodexPath, "utf8");
 
@@ -170,13 +208,21 @@ scopes:
     expect(Object.keys(claudeContent.mcpServers)).toEqual(["github"]);
     expect(geminiContent.theme).toBe("light");
     expect(Object.keys(geminiContent.mcpServers)).toEqual(["github"]);
+    expect(copilotCliContent.theme).toBe("dark");
+    expect(Object.keys(copilotCliContent.mcpServers)).toEqual(["github"]);
+    expect(copilotVsCodeContent.inputs).toEqual([]);
+    expect(Object.keys(copilotVsCodeContent.servers)).toEqual(["github"]);
     expect(repoCodexContent).toContain("# No MCP servers resolved by mcpmatrix");
     expect(repoClaudeContent.mcpServers).toEqual({});
     expect(repoGeminiContent.mcpServers).toEqual({});
+    expect(repoCopilotCliContent.mcpServers).toEqual({});
+    expect(repoCopilotVsCodeContent.servers).toEqual({});
     const backups = await fs.promises.readdir(getBackupsDir());
     expect(backups.some((entry) => entry.startsWith("codex-global-") && entry.endsWith(".toml"))).toBe(true);
     expect(backups.some((entry) => entry.startsWith("claude-global-") && entry.endsWith(".json"))).toBe(true);
     expect(backups.some((entry) => entry.startsWith("gemini-global-") && entry.endsWith(".json"))).toBe(true);
+    expect(backups.some((entry) => entry.startsWith("copilot-cli-global-") && entry.endsWith(".json"))).toBe(true);
+    expect(backups.some((entry) => entry.startsWith("copilot-vscode-global-") && entry.endsWith(".json"))).toBe(true);
   });
 
   it("applies config when Claude and Gemini JSON files contain a UTF-8 BOM", async () => {
@@ -185,6 +231,8 @@ scopes:
     const codexPath = path.join(homeDir, ".codex", "config.toml");
     const claudePath = path.join(homeDir, ".claude.json");
     const geminiPath = path.join(homeDir, ".gemini", "settings.json");
+    const copilotCliPath = getCopilotCliConfigPath();
+    const copilotVsCodePath = getCopilotVsCodeConfigPath();
 
     await writeUserConfig(
       homeDir,
@@ -202,17 +250,25 @@ scopes:
 
     await fs.promises.mkdir(path.dirname(codexPath), { recursive: true });
     await fs.promises.mkdir(path.dirname(geminiPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(copilotCliPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(copilotVsCodePath), { recursive: true });
     await fs.promises.writeFile(codexPath, 'model = "gpt-5"\n', "utf8");
     await fs.promises.writeFile(claudePath, `\uFEFF{"theme":"dark"}`, "utf8");
     await fs.promises.writeFile(geminiPath, `\uFEFF{"theme":"light"}`, "utf8");
+    await fs.promises.writeFile(copilotCliPath, `\uFEFF{"theme":"dark"}`, "utf8");
+    await fs.promises.writeFile(copilotVsCodePath, `\uFEFF{"inputs":[]}`, "utf8");
 
     await runApplyCommand({ repo: repoDir });
 
     const claudeContent = JSON.parse(await fs.promises.readFile(claudePath, "utf8")) as { mcpServers: Record<string, unknown> };
     const geminiContent = JSON.parse(await fs.promises.readFile(geminiPath, "utf8")) as { mcpServers: Record<string, unknown> };
+    const copilotCliContent = JSON.parse(await fs.promises.readFile(copilotCliPath, "utf8")) as { mcpServers: Record<string, unknown> };
+    const copilotVsCodeContent = JSON.parse(await fs.promises.readFile(copilotVsCodePath, "utf8")) as { servers: Record<string, unknown> };
 
     expect(Object.keys(claudeContent.mcpServers)).toEqual(["github"]);
     expect(Object.keys(geminiContent.mcpServers)).toEqual(["github"]);
+    expect(Object.keys(copilotCliContent.mcpServers)).toEqual(["github"]);
+    expect(Object.keys(copilotVsCodeContent.servers)).toEqual(["github"]);
   });
 
   it("lists backups and rolls back the latest config for a single client", async () => {
@@ -221,6 +277,8 @@ scopes:
     const codexPath = path.join(homeDir, ".codex", "config.toml");
     const claudePath = path.join(homeDir, ".claude.json");
     const geminiPath = path.join(homeDir, ".gemini", "settings.json");
+    const copilotCliPath = getCopilotCliConfigPath();
+    const copilotVsCodePath = getCopilotVsCodeConfigPath();
 
     await writeUserConfig(
       homeDir,
@@ -238,9 +296,13 @@ scopes:
 
     await fs.promises.mkdir(path.dirname(codexPath), { recursive: true });
     await fs.promises.mkdir(path.dirname(geminiPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(copilotCliPath), { recursive: true });
+    await fs.promises.mkdir(path.dirname(copilotVsCodePath), { recursive: true });
     await fs.promises.writeFile(codexPath, 'model = "gpt-5"\n', "utf8");
     await fs.promises.writeFile(claudePath, '{\n  "theme": "dark"\n}\n', "utf8");
     await fs.promises.writeFile(geminiPath, '{\n  "theme": "light"\n}\n', "utf8");
+    await fs.promises.writeFile(copilotCliPath, '{\n  "theme": "dark"\n}\n', "utf8");
+    await fs.promises.writeFile(copilotVsCodePath, '{\n  "inputs": []\n}\n', "utf8");
 
     await runApplyCommand({ repo: repoDir });
     await runListBackupsCommand({ client: "codex" });

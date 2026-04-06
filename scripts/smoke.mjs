@@ -6,6 +6,14 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
+function getVsCodeMcpPath(homeDir) {
+  if (process.platform === "win32") {
+    return path.join(homeDir, "AppData", "Roaming", "Code", "User", "mcp.json");
+  }
+
+  return path.join(homeDir, ".config", "Code", "User", "mcp.json");
+}
+
 async function runCli(args, env) {
   return execFileAsync(process.execPath, [path.join(process.cwd(), "dist", "cli", "index.js"), ...args], {
     cwd: process.cwd(),
@@ -22,6 +30,8 @@ async function main() {
       ...process.env,
       HOME: tempHome,
       USERPROFILE: tempHome,
+      APPDATA: path.join(tempHome, "AppData", "Roaming"),
+      XDG_CONFIG_HOME: path.join(tempHome, ".config"),
     };
 
     const { stdout: versionOutput } = await runCli(["--version"], env);
@@ -67,6 +77,8 @@ scopes:
     await fs.access(path.join(tempHome, ".codex", "config.toml"));
     await fs.access(path.join(tempHome, ".claude.json"));
     await fs.access(path.join(tempHome, ".gemini", "settings.json"));
+    await fs.access(path.join(tempHome, ".copilot", "mcp-config.json"));
+    await fs.access(getVsCodeMcpPath(tempHome));
 
     const importHome = await fs.mkdtemp(path.join(os.tmpdir(), "mcpmatrix-import-smoke-"));
 
@@ -75,6 +87,8 @@ scopes:
         ...process.env,
         HOME: importHome,
         USERPROFILE: importHome,
+        APPDATA: path.join(importHome, "AppData", "Roaming"),
+        XDG_CONFIG_HOME: path.join(importHome, ".config"),
       };
 
       await fs.writeFile(

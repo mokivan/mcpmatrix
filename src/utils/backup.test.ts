@@ -8,6 +8,8 @@ import { getBackupsDir } from "./paths";
 const tempPaths: string[] = [];
 let originalHome: string | undefined;
 let originalUserProfile: string | undefined;
+let originalAppData: string | undefined;
+let originalXdgConfigHome: string | undefined;
 
 function trackPath(targetPath: string): void {
   tempPaths.push(targetPath);
@@ -16,11 +18,13 @@ function trackPath(targetPath: string): void {
 afterEach(async () => {
   process.env.HOME = originalHome;
   process.env.USERPROFILE = originalUserProfile;
+  process.env.APPDATA = originalAppData;
+  process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
 
   while (tempPaths.length > 0) {
     const targetPath = tempPaths.pop();
     if (targetPath && fs.existsSync(targetPath)) {
-      await fs.promises.rm(targetPath, { recursive: true, force: true });
+      await fs.promises.rm(targetPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
     }
   }
 });
@@ -37,8 +41,12 @@ async function createTempHome(): Promise<string> {
   const tempHome = await fs.promises.mkdtemp(path.join(os.tmpdir(), "mcpmatrix-home-"));
   originalHome = process.env.HOME;
   originalUserProfile = process.env.USERPROFILE;
+  originalAppData = process.env.APPDATA;
+  originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
   process.env.HOME = tempHome;
   process.env.USERPROFILE = tempHome;
+  process.env.APPDATA = path.join(tempHome, "AppData", "Roaming");
+  process.env.XDG_CONFIG_HOME = path.join(tempHome, ".config");
   trackPath(tempHome);
   return tempHome;
 }
@@ -62,6 +70,24 @@ describe("createBackupIfExists", () => {
 
     expect(path.basename(backupPath ?? "")).toMatch(/^claude-global-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json$/);
     expect(fs.readFileSync(backupPath ?? "", "utf8")).toContain("\"mcpServers\"");
+  });
+
+  it("creates versioned backup names for copilot clients", async () => {
+    await createTempHome();
+    const copilotCliPath = await createTempFile("mcp-config.json", "{\n  \"mcpServers\": {}\n}\n");
+    const copilotVsCodePath = await createTempFile("mcp.json", "{\n  \"servers\": {}\n}\n");
+
+    const copilotCliBackup = await createBackupIfExists(copilotCliPath, {
+      client: "copilot-cli",
+      scope: "global",
+    });
+    const copilotVsCodeBackup = await createBackupIfExists(copilotVsCodePath, {
+      client: "copilot-vscode",
+      scope: "global",
+    });
+
+    expect(path.basename(copilotCliBackup ?? "")).toMatch(/^copilot-cli-global-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json$/);
+    expect(path.basename(copilotVsCodeBackup ?? "")).toMatch(/^copilot-vscode-global-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json$/);
   });
 
   it("retains only the latest three backups per target stem", async () => {
