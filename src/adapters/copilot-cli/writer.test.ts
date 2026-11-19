@@ -9,7 +9,7 @@ const servers: ResolvedServer[] = [
     command: "npx",
     args: ["-y", "@modelcontextprotocol/server-github"],
     env: {
-      GITHUB_TOKEN: "${env:GITHUB_TOKEN}",
+      GITHUB_TOKEN: "literal-token",
     },
   },
   {
@@ -18,7 +18,7 @@ const servers: ResolvedServer[] = [
     protocol: "sse",
     url: "https://mcp.context7.com/mcp",
     headers: {
-      CONTEXT7_API_KEY: "${env:CONTEXT7_API_KEY}",
+      CONTEXT7_API_KEY: "literal-key",
     },
   },
 ];
@@ -37,6 +37,14 @@ describe("copilot-cli writer", () => {
         2,
       ),
     ).toMatchSnapshot();
+  });
+
+  it("rejects environment variable references because Copilot CLI does not document expansion", () => {
+    expect(() =>
+      renderCopilotCliConfig({}, [
+        { name: "gh", transport: "stdio", command: "npx", env: { TOKEN: "${env:TOKEN}" } },
+      ]),
+    ).toThrow("does not document environment variable expansion");
   });
 
   it("rejects persisted auth metadata", () => {

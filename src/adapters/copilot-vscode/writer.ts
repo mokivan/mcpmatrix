@@ -1,8 +1,8 @@
 import fs from "fs";
 import type { ResolvedServer } from "../../types";
-import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getCopilotVsCodeConfigPath } from "../../utils/paths";
 import { readTextFile } from "../../utils/text";
+import { mergeManagedEntries } from "../../core/managed-state";
 import { getClientCompatibility } from "../../core/server-config";
 
 type CopilotVsCodeStdioServer = {
@@ -69,22 +69,14 @@ export async function readCopilotVsCodeConfig(filePath = getCopilotVsCodeConfigP
 export function renderCopilotVsCodeConfig(
   existingConfig: CopilotVsCodeConfig,
   servers: ResolvedServer[],
+  previouslyManaged: string[] = [],
 ): CopilotVsCodeConfig {
   return {
     ...existingConfig,
-    servers: Object.fromEntries(servers.map((server) => [server.name, toCopilotVsCodeServer(server)])),
+    servers: mergeManagedEntries(
+      existingConfig.servers,
+      Object.fromEntries(servers.map((server) => [server.name, toCopilotVsCodeServer(server)])),
+      previouslyManaged,
+    ),
   };
-}
-
-export async function writeCopilotVsCodeConfig(
-  servers: ResolvedServer[],
-  filePath = getCopilotVsCodeConfigPath(),
-): Promise<string | null> {
-  const existingConfig = await readCopilotVsCodeConfig(filePath);
-  const nextConfig = renderCopilotVsCodeConfig(existingConfig, servers);
-
-  const backupPath = await createBackupIfExists(filePath);
-  await writeFileAtomic(filePath, `${JSON.stringify(nextConfig, null, 2)}\n`);
-
-  return backupPath;
 }

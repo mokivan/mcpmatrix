@@ -1,9 +1,9 @@
 import fs from "fs";
 import type { ResolvedServer } from "../../types";
-import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getGeminiConfigPath } from "../../utils/paths";
 import { readTextFile } from "../../utils/text";
-import { getClientCompatibility } from "../../core/server-config";
+import { mergeManagedEntries } from "../../core/managed-state";
+import { getClientCompatibility, translateEnvReferences } from "../../core/server-config";
 
 export type GeminiConfig = Record<string, unknown> & {
   mcpServers?: Record<
@@ -33,7 +33,10 @@ function toGeminiServer(server: ResolvedServer): { command: string; args: string
     return {
       command: server.command,
       args: server.args ?? [],
-      env: server.env ?? {},
+      // Gemini CLI expands $VAR / ${VAR} in the env block.
+      env: Object.fromEntries(
+        Object.entries(server.env ?? {}).map(([key, value]) => [key, translateEnvReferences(value, (name) => `\${${name}}`)]),
+      ),
     };
   }
 
@@ -57,22 +60,17 @@ export async function readGeminiConfig(filePath = getGeminiConfigPath()): Promis
   }
 }
 
-export function renderGeminiConfig(existingConfig: GeminiConfig, servers: ResolvedServer[]): GeminiConfig {
+export function renderGeminiConfig(
+  existingConfig: GeminiConfig,
+  servers: ResolvedServer[],
+  previouslyManaged: string[] = [],
+): GeminiConfig {
   return {
     ...existingConfig,
-    mcpServers: Object.fromEntries(servers.map((server) => [server.name, toGeminiServer(server)])),
+    mcpServers: mergeManagedEntries(
+      existingConfig.mcpServers,
+      Object.fromEntries(servers.map((server) => [server.name, toGeminiServer(server)])),
+      previouslyManaged,
+    ),
   };
-}
-
-export async function writeGeminiConfig(
-  servers: ResolvedServer[],
-  filePath = getGeminiConfigPath(),
-): Promise<string | null> {
-  const existingConfig = await readGeminiConfig(filePath);
-  const nextConfig = renderGeminiConfig(existingConfig, servers);
-
-  const backupPath = await createBackupIfExists(filePath);
-  await writeFileAtomic(filePath, `${JSON.stringify(nextConfig, null, 2)}\n`);
-
-  return backupPath;
 }

@@ -11,7 +11,7 @@ exports[`gemini writer > renders the gemini config snapshot 1`] = `
         "@modelcontextprotocol/server-github"
       ],
       "env": {
-        "GITHUB_TOKEN": "\${env:GITHUB_TOKEN}"
+        "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
       }
     },
     "medusa": {

@@ -147,7 +147,7 @@ scopes:
     command: npx
     args: ["-y", "@modelcontextprotocol/server-github"]
     env:
-      GITHUB_TOKEN: \${env:GITHUB_TOKEN}
+      GITHUB_TOKEN: literal-token
 scopes:
   global:
     enable:
@@ -346,6 +346,79 @@ scopes:
     await expect(runApplyCommand({ repo: repoDir })).rejects.toThrow("Invalid JSON in Gemini config");
     expect(await fs.promises.readFile(codexPath, "utf8")).toBe(originalCodex);
     await expect(fs.promises.access(getBackupsDir())).rejects.toThrow();
+  });
+
+  it("translates env references per client and skips clients that cannot express them", async () => {
+    const homeDir = await createTempHome();
+    const repoDir = await createRepoDir();
+
+    await writeUserConfig(
+      homeDir,
+      `servers:
+  github:
+    transport: stdio
+    command: npx
+    env:
+      GITHUB_TOKEN: \${env:GITHUB_TOKEN}
+scopes:
+  global:
+    enable:
+      - github
+`,
+    );
+
+    await runApplyCommand({ repo: repoDir });
+
+    const claude = JSON.parse(await fs.promises.readFile(path.join(homeDir, ".claude.json"), "utf8")) as {
+      mcpServers: { github: { env: Record<string, string> } };
+    };
+    expect(claude.mcpServers.github.env.GITHUB_TOKEN).toBe("${GITHUB_TOKEN}");
+    expect(await fs.promises.readFile(path.join(homeDir, ".codex", "config.toml"), "utf8")).toContain('env_vars = ["GITHUB_TOKEN"]');
+
+    const copilotCli = JSON.parse(await fs.promises.readFile(getCopilotCliConfigPath(), "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(copilotCli.mcpServers).toEqual({});
+
+    await expect(runApplyCommand({ repo: repoDir, clients: "copilot-cli" })).rejects.toThrow(
+      "Copilot CLI cannot represent server 'github'",
+    );
+  });
+
+  it("keeps servers added by hand and removes only the ones mcpmatrix wrote earlier", async () => {
+    const homeDir = await createTempHome();
+    const repoDir = await createRepoDir();
+    const claudePath = path.join(homeDir, ".claude.json");
+
+    await fs.promises.writeFile(
+      claudePath,
+      JSON.stringify({ numStartups: 5, mcpServers: { manual: { command: "node", args: [] } } }),
+      "utf8",
+    );
+
+    const writeServers = (names: string[]) =>
+      writeUserConfig(
+        homeDir,
+        `servers:
+${names.map((name) => `  ${name}:
+    transport: stdio
+    command: node
+`).join("")}scopes:
+  global:
+    enable: [${names.join(", ")}]
+`,
+      );
+
+    await writeServers(["alpha", "beta"]);
+    await runApplyCommand({ repo: repoDir, clients: "claude" });
+    let claude = JSON.parse(await fs.promises.readFile(claudePath, "utf8")) as { numStartups: number; mcpServers: Record<string, unknown> };
+    expect(Object.keys(claude.mcpServers).sort()).toEqual(["alpha", "beta", "manual"]);
+    expect(claude.numStartups).toBe(5);
+
+    await writeServers(["alpha"]);
+    await runApplyCommand({ repo: repoDir, clients: "claude" });
+    claude = JSON.parse(await fs.promises.readFile(claudePath, "utf8")) as { numStartups: number; mcpServers: Record<string, unknown> };
+    expect(Object.keys(claude.mcpServers).sort()).toEqual(["alpha", "manual"]);
   });
 
   it("imports existing configs into the canonical YAML", async () => {

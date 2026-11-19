@@ -1,6 +1,6 @@
 {
   "name": "@mokivan/mcpmatrix",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "license": "MIT",
   "description": "Define MCP servers once and generate configs for Codex, Claude Code, Gemini, and GitHub Copilot from a canonical MCP configuration",
   "type": "commonjs",
@@ -12,7 +12,12 @@
     "copilot",
     "vscode",
     "cli",
-    "config"
+    "config",
+    "model-context-protocol",
+    "mcp-servers",
+    "github-copilot",
+    "gemini-cli",
+    "config-sync"
   ],
   "homepage": "https://github.com/mokivan/mcpmatrix#readme",
   "bugs": {
@@ -58,7 +63,7 @@
   "dependencies": {
     "commander": "^11.0.0",
     "terminal-kit": "^3.1.2",
-    "toml": "^4.1.1",
+    "toml": "^5.0.1",
     "yaml": "^2.3.0"
   },
   "devDependencies": {

@@ -51,6 +51,13 @@ vi.mock("../adapters/copilot-vscode/writer", () => ({
   renderCopilotVsCodeConfig: mocks.renderCopilotVsCodeConfig,
 }));
 
+vi.mock("./managed-state", () => ({
+  loadManagedState: vi.fn().mockResolvedValue({ version: 1, managed: {} }),
+  saveManagedState: vi.fn().mockResolvedValue(undefined),
+  getManagedNames: vi.fn().mockReturnValue([]),
+  setManagedNames: vi.fn(),
+}));
+
 vi.mock("../utils/backup", () => ({
   createBackupIfExists: mocks.createBackupIfExists,
   restoreFromBackupOrRemove: mocks.restoreFromBackupOrRemove,

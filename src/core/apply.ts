@@ -3,9 +3,19 @@ import { readCopilotCliConfig, renderCopilotCliConfig } from "../adapters/copilo
 import { readCopilotVsCodeConfig, renderCopilotVsCodeConfig } from "../adapters/copilot-vscode/writer";
 import { readCodexConfig, mergeCodexConfig } from "../adapters/codex/writer";
 import { readGeminiConfig, renderGeminiConfig } from "../adapters/gemini/writer";
-import type { ApplyResult, ApplyTargetResult, ResolutionResult, ResolvedServer, SupportedClient } from "../types";
+import type {
+  ApplyResult,
+  ApplyTargetResult,
+  ResolutionResult,
+  ResolvedServer,
+  SkippedServerResult,
+  SupportedClient,
+} from "../types";
 import { createBackupIfExists, restoreFromBackupOrRemove, writeFileAtomic } from "../utils/backup";
 import { SUPPORTED_CLIENTS } from "./client-selection";
+import { getManagedNames, loadManagedState, saveManagedState, setManagedNames } from "./managed-state";
+import type { ManagedState } from "./managed-state";
+import { partitionServersForClient } from "./server-config";
 import {
   getClaudeConfigPath,
   getCopilotCliConfigPath,
@@ -21,6 +31,7 @@ import {
 
 type PreparedTarget = ApplyTargetResult & {
   nextContent: string;
+  managedNames: string[];
 };
 
 type PreparedTargetInput = {
@@ -45,92 +56,44 @@ export async function rollbackAppliedTargets(targets: ApplyTargetResult[]): Prom
   }
 }
 
-async function prepareTarget(target: PreparedTargetInput): Promise<PreparedTarget> {
-  if (target.client === "codex") {
-    const existingContent = await readCodexConfig(target.filePath);
-    return {
-      client: target.client,
-      scope: target.scope,
-      filePath: target.filePath,
-      backupPath: null,
-      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
-      nextContent: mergeCodexConfig(existingContent, target.servers),
-    };
+async function renderNextContent(target: PreparedTargetInput, previouslyManaged: string[]): Promise<string> {
+  switch (target.client) {
+    case "codex":
+      // Codex keeps its own marker-delimited block, so it does not need the managed-names state.
+      return mergeCodexConfig(await readCodexConfig(target.filePath), target.servers);
+    case "claude":
+      return formatJsonContent(renderClaudeConfig(await readClaudeConfig(target.filePath), target.servers, previouslyManaged));
+    case "gemini":
+      return formatJsonContent(renderGeminiConfig(await readGeminiConfig(target.filePath), target.servers, previouslyManaged));
+    case "copilot-cli":
+      return formatJsonContent(
+        renderCopilotCliConfig(await readCopilotCliConfig(target.filePath), target.servers, previouslyManaged),
+      );
+    case "copilot-vscode":
+      return formatJsonContent(
+        renderCopilotVsCodeConfig(await readCopilotVsCodeConfig(target.filePath), target.servers, previouslyManaged),
+      );
   }
+}
 
-  if (target.client === "claude") {
-    const existingConfig = await readClaudeConfig(target.filePath);
-    return {
-      client: target.client,
-      scope: target.scope,
-      filePath: target.filePath,
-      backupPath: null,
-      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
-      nextContent: formatJsonContent(renderClaudeConfig(existingConfig, target.servers)),
-    };
-  }
-
-  if (target.client === "gemini") {
-    const existingConfig = await readGeminiConfig(target.filePath);
-    return {
-      client: target.client,
-      scope: target.scope,
-      filePath: target.filePath,
-      backupPath: null,
-      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
-      nextContent: formatJsonContent(renderGeminiConfig(existingConfig, target.servers)),
-    };
-  }
-
-  if (target.client === "copilot-cli") {
-    const existingConfig = await readCopilotCliConfig(target.filePath);
-    return {
-      client: target.client,
-      scope: target.scope,
-      filePath: target.filePath,
-      backupPath: null,
-      ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
-      nextContent: formatJsonContent(renderCopilotCliConfig(existingConfig, target.servers)),
-    };
-  }
-
-  const existingConfig = await readCopilotVsCodeConfig(target.filePath);
+async function prepareTarget(target: PreparedTargetInput, state: ManagedState): Promise<PreparedTarget> {
   return {
     client: target.client,
     scope: target.scope,
     filePath: target.filePath,
     backupPath: null,
     ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
-    nextContent: formatJsonContent(renderCopilotVsCodeConfig(existingConfig, target.servers)),
+    nextContent: await renderNextContent(target, getManagedNames(state, target.client, target.filePath)),
+    managedNames: target.servers.map((server) => server.name),
   };
 }
 
-async function prepareTargets(resolution: ResolutionResult, clients: SupportedClient[]): Promise<PreparedTarget[]> {
-  const targets: PreparedTargetInput[] = [
-    {
-      client: "codex",
-      scope: "global",
-      filePath: getCodexConfigPath(),
-      servers: resolution.globalServers,
-    },
-    {
-      client: "claude",
-      scope: "global",
-      filePath: getClaudeConfigPath(),
-      servers: resolution.globalServers,
-    },
-    {
-      client: "gemini",
-      scope: "global",
-      filePath: getGeminiConfigPath(),
-      servers: resolution.globalServers,
-    },
-    {
-      client: "copilot-cli",
-      scope: "global",
-      filePath: getCopilotCliConfigPath(),
-      servers: resolution.globalServers,
-    },
+function buildTargetInputs(resolution: ResolutionResult): PreparedTargetInput[] {
+  const globalTargets: PreparedTargetInput[] = [
+    { client: "codex", scope: "global", filePath: getCodexConfigPath(), servers: resolution.globalServers },
+    { client: "claude", scope: "global", filePath: getClaudeConfigPath(), servers: resolution.globalServers },
+    { client: "gemini", scope: "global", filePath: getGeminiConfigPath(), servers: resolution.globalServers },
+    { client: "copilot-cli", scope: "global", filePath: getCopilotCliConfigPath(), servers: resolution.globalServers },
     {
       client: "copilot-vscode",
       scope: "global",
@@ -139,55 +102,61 @@ async function prepareTargets(resolution: ResolutionResult, clients: SupportedCl
     },
   ];
 
-  if (resolution.matchedRepo) {
-    targets.push(
-      {
-        client: "codex",
-        scope: "repo",
-        filePath: getRepoCodexConfigPath(resolution.repoPath),
-        repoPath: resolution.repoPath,
-        servers: resolution.repoScopedServers,
-      },
-      {
-        client: "claude",
-        scope: "repo",
-        filePath: getRepoClaudeConfigPath(resolution.repoPath),
-        repoPath: resolution.repoPath,
-        servers: resolution.repoScopedServers,
-      },
-      {
-        client: "gemini",
-        scope: "repo",
-        filePath: getRepoGeminiConfigPath(resolution.repoPath),
-        repoPath: resolution.repoPath,
-        servers: resolution.repoScopedServers,
-      },
-      {
-        client: "copilot-cli",
-        scope: "repo",
-        filePath: getRepoCopilotCliConfigPath(resolution.repoPath),
-        repoPath: resolution.repoPath,
-        servers: resolution.repoScopedServers,
-      },
-      {
-        client: "copilot-vscode",
-        scope: "repo",
-        filePath: getRepoCopilotVsCodeConfigPath(resolution.repoPath),
-        repoPath: resolution.repoPath,
-        servers: resolution.repoScopedServers,
-      },
-    );
+  if (!resolution.matchedRepo) {
+    return globalTargets;
   }
 
-  return Promise.all(targets.filter((target) => clients.includes(target.client)).map((target) => prepareTarget(target)));
+  const repoPath = resolution.repoPath;
+  const servers = resolution.repoScopedServers;
+  return [
+    ...globalTargets,
+    { client: "codex", scope: "repo", filePath: getRepoCodexConfigPath(repoPath), repoPath, servers },
+    { client: "claude", scope: "repo", filePath: getRepoClaudeConfigPath(repoPath), repoPath, servers },
+    { client: "gemini", scope: "repo", filePath: getRepoGeminiConfigPath(repoPath), repoPath, servers },
+    { client: "copilot-cli", scope: "repo", filePath: getRepoCopilotCliConfigPath(repoPath), repoPath, servers },
+    { client: "copilot-vscode", scope: "repo", filePath: getRepoCopilotVsCodeConfigPath(repoPath), repoPath, servers },
+  ];
 }
 
+async function prepareTargets(
+  resolution: ResolutionResult,
+  clients: SupportedClient[],
+  strict: boolean,
+  state: ManagedState,
+): Promise<{ targets: PreparedTarget[]; skipped: SkippedServerResult[] }> {
+  const skipped: SkippedServerResult[] = [];
+
+  const inputs = buildTargetInputs(resolution)
+    .filter((target) => clients.includes(target.client))
+    .map<PreparedTargetInput>((target) => {
+      // Strict mode (clients named explicitly) keeps every server so an unsupported one fails loudly in the writer.
+      if (strict) {
+        return target;
+      }
+
+      const partition = partitionServersForClient(target.servers, target.client);
+      for (const entry of partition.skipped) {
+        skipped.push({ client: target.client, scope: target.scope, serverName: entry.server.name, reason: entry.reason });
+      }
+
+      return { ...target, servers: partition.supported };
+    });
+
+  const targets = await Promise.all(inputs.map((input) => prepareTarget(input, state)));
+  return { targets, skipped };
+}
+
+/**
+ * `strict` makes a server that a client cannot represent an error. Without it (the `all` and `auto` client
+ * selections) that server is skipped for that client and reported in `skipped`.
+ */
 export async function applyResolvedServers(
   resolution: ResolutionResult,
-  options?: { clients?: SupportedClient[] },
+  options?: { clients?: SupportedClient[]; strict?: boolean },
 ): Promise<ApplyResult> {
   const selectedClients = options?.clients ?? SUPPORTED_CLIENTS;
-  const preparedTargets = await prepareTargets(resolution, selectedClients);
+  const state = await loadManagedState();
+  const { targets: preparedTargets, skipped } = await prepareTargets(resolution, selectedClients, options?.strict ?? true, state);
 
   for (const target of preparedTargets) {
     target.backupPath = await createBackupIfExists(target.filePath, {
@@ -197,13 +166,20 @@ export async function applyResolvedServers(
     });
   }
 
-  let failedTarget: SupportedClient | null = null;
+  let failedTarget: SupportedClient | "state" | null = null;
 
   try {
     for (const target of preparedTargets) {
       failedTarget = target.client;
       await writeFileAtomic(target.filePath, target.nextContent);
     }
+
+    // The managed-names state is committed last, so a failed apply never records servers it did not write.
+    failedTarget = "state";
+    for (const target of preparedTargets) {
+      setManagedNames(state, target.client, target.filePath, target.managedNames);
+    }
+    await saveManagedState(state);
   } catch (error) {
     let rollbackErrorMessage = "";
 
@@ -226,6 +202,7 @@ export async function applyResolvedServers(
       backupPath,
       ...(repoPath === undefined ? {} : { repoPath }),
     })),
+    skipped,
     rollbackPerformed: false,
   };
 }

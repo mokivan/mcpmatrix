@@ -20,7 +20,10 @@ export async function runApplyCommand(options?: { repo?: string; clients?: strin
     logWarn(warning);
   }
 
-  const result = await applyResolvedServers(resolution, { clients: clientSelection.clients });
+  const result = await applyResolvedServers(resolution, {
+    clients: clientSelection.clients,
+    strict: clientSelection.mode === "explicit",
+  });
 
   logInfo(
     `Applied ${resolution.servers.length} active MCP server(s) for repo: ${resolution.repoPath} (${resolution.globalServers.length} global, ${resolution.repoScopedServers.length} repo-scoped)`,
@@ -32,6 +35,9 @@ export async function runApplyCommand(options?: { repo?: string; clients?: strin
     for (const detection of clientSelection.detections.filter((candidate) => !candidate.selected)) {
       logInfo(`Skipped ${detection.client}: no existing config file and no detected CLI in PATH`);
     }
+  }
+  for (const skipped of result.skipped) {
+    logWarn(`Skipped ${skipped.serverName} for ${skipped.client} [${skipped.scope}]: ${skipped.reason}`);
   }
   for (const target of result.targets) {
     const scopeLabel = target.scope === "repo" ? `repo ${target.repoPath}` : "global";

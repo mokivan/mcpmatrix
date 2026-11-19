@@ -12,18 +12,14 @@ exports[`claude writer > renders the claude config snapshot 1`] = `
         "@modelcontextprotocol/server-github"
       ],
       "env": {
-        "GITHUB_TOKEN": "\${env:GITHUB_TOKEN}"
+        "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
       }
     },
     "medusa": {
       "type": "sse",
       "url": "https://docs.medusajs.com/mcp",
       "headers": {
-        "Authorization": "Bearer \${env:MEDUSA_TOKEN}"
-      },
-      "auth": {
-        "type": "bearer",
-        "token": "\${env:MEDUSA_TOKEN}"
+        "Authorization": "Bearer \${MEDUSA_TOKEN}"
       }
     }
   }

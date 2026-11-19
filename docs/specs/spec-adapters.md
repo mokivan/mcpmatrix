@@ -14,8 +14,9 @@ Adapters convert the canonical mcpmatrix configuration into specific formats use
 
 1. map canonical server definitions to client format
 2. preserve supported transport metadata for each client
-3. reject unsupported target/client combinations before writing files
-4. write global and repo-scoped configuration files to the correct location
+3. reject unsupported target/client combinations before writing files (explicit `--clients`) or skip them with a warning (`all`/`auto`)
+4. translate `${env:VAR}` references per client (Claude `${VAR}`, Gemini `${VAR}` in `env` only, Codex `env_vars` for same-name variables, VS Code unchanged) and never write the literal `${env:VAR}` text to a client that does not expand it
+5. write global and repo-scoped configuration files to the correct location
 
 ## Codex
 

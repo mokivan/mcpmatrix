@@ -8,6 +8,11 @@ import {
   getCopilotCliConfigPath,
   getCopilotVsCodeConfigPath,
   getGeminiConfigPath,
+  getRepoClaudeConfigPath,
+  getRepoCodexConfigPath,
+  getRepoCopilotCliConfigPath,
+  getRepoCopilotVsCodeConfigPath,
+  getRepoGeminiConfigPath,
   normalizeRepoPath,
 } from "./paths";
 
@@ -25,6 +30,8 @@ type BackupMetadata = {
   filePath: string;
   timestamp: string;
   repoPath?: string;
+  /** The first backup ever taken of a target, i.e. its state before mcpmatrix touched it. Never rotated out. */
+  original?: boolean;
 };
 
 type BackupQuery = {
@@ -60,6 +67,9 @@ const LEGACY_TARGETS: Record<SupportedClient, { filePath: string; stem: string; 
     extension: ".json",
   },
 };
+
+const PRIVATE_FILE_MODE = 0o600;
+const PRIVATE_DIR_MODE = 0o700;
 
 const TIMESTAMP_PATTERN = "\\d{4}-\\d{2}-\\d{2}-\\d{2}-\\d{2}";
 
@@ -147,13 +157,19 @@ function resolveBackupTarget(
   };
 }
 
-async function writeBackupMetadata(backupPath: string, target: BackupTarget, timestamp: string): Promise<void> {
+async function writeBackupMetadata(
+  backupPath: string,
+  target: BackupTarget,
+  timestamp: string,
+  original: boolean,
+): Promise<void> {
   const metadata: BackupMetadata = {
     client: target.client,
     scope: target.scope,
     filePath: target.filePath,
     timestamp,
     ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
+    ...(original ? { original: true } : {}),
   };
 
   await fs.promises.writeFile(getBackupMetaPath(backupPath), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
@@ -196,6 +212,7 @@ async function getBackupEntry(backupPath: string): Promise<BackupEntry | null> {
       backupFileName: path.basename(backupPath),
       timestamp: metadata.timestamp,
       ...(metadata.repoPath === undefined ? {} : { repoPath: metadata.repoPath }),
+      ...(metadata.original ? { original: true } : {}),
     };
   }
 
@@ -218,8 +235,19 @@ function matchesBackupQuery(entry: BackupEntry, query?: BackupQuery): boolean {
   return true;
 }
 
+// Backups taken within the same minute share a timestamp and get a numeric suffix (-1, -2, ... -10), so the
+// suffix must be compared as a number: a plain string comparison would rank the oldest one as the latest.
+function getBackupSequence(entry: BackupEntry): number {
+  const match = entry.backupFileName.match(/-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-(\d+))?\.[^.]*$/);
+  return match?.[1] === undefined ? 0 : Number(match[1]);
+}
+
 function sortBackupsDescending(left: BackupEntry, right: BackupEntry): number {
-  return right.backupFileName.localeCompare(left.backupFileName);
+  return (
+    right.timestamp.localeCompare(left.timestamp) ||
+    getBackupSequence(right) - getBackupSequence(left) ||
+    right.backupFileName.localeCompare(left.backupFileName)
+  );
 }
 
 async function enforceBackupRetention(target: BackupTarget): Promise<void> {
@@ -229,7 +257,7 @@ async function enforceBackupRetention(target: BackupTarget): Promise<void> {
     ...(target.repoPath === undefined ? {} : { repoPath: target.repoPath }),
   });
 
-  for (const staleBackup of backups.slice(3)) {
+  for (const staleBackup of backups.slice(3).filter((backup) => backup.original !== true)) {
     await fs.promises.rm(staleBackup.backupPath, { force: true });
     await fs.promises.rm(getBackupMetaPath(staleBackup.backupPath), { force: true });
   }
@@ -250,7 +278,25 @@ export async function createBackupIfExists(
   let backupPath = path.join(backupsDir, backupFileName);
   let collisionIndex = 1;
 
-  await fs.promises.mkdir(backupsDir, { recursive: true });
+  await fs.promises.mkdir(backupsDir, { recursive: true, mode: PRIVATE_DIR_MODE });
+
+  // Start after the highest suffix already used in this minute: a rotated-out backup frees its name, and
+  // reusing it would give a newer backup a lower sequence number than older ones.
+  const sameMinuteBackups = await listBackups({
+    client: resolvedTarget.client,
+    scope: resolvedTarget.scope,
+    ...(resolvedTarget.repoPath === undefined ? {} : { repoPath: resolvedTarget.repoPath }),
+  });
+  const highestSequence = Math.max(
+    -1,
+    ...sameMinuteBackups.filter((entry) => entry.timestamp === timestamp).map((entry) => getBackupSequence(entry)),
+  );
+  collisionIndex = Math.max(collisionIndex, highestSequence + 1);
+  if (highestSequence >= 0) {
+    backupFileName = `${resolvedTarget.client}-${resolvedTarget.scope}-${timestamp}-${collisionIndex}${resolvedTarget.extension}`;
+    backupPath = path.join(backupsDir, backupFileName);
+    collisionIndex += 1;
+  }
 
   while (fs.existsSync(backupPath)) {
     backupFileName = `${resolvedTarget.client}-${resolvedTarget.scope}-${timestamp}-${collisionIndex}${resolvedTarget.extension}`;
@@ -258,8 +304,12 @@ export async function createBackupIfExists(
     collisionIndex += 1;
   }
 
+  const isOriginal = sameMinuteBackups.length === 0;
+
   await fs.promises.copyFile(filePath, backupPath);
-  await writeBackupMetadata(backupPath, resolvedTarget, timestamp);
+  // Backups can contain secrets: keep them private (no-op on Windows).
+  await fs.promises.chmod(backupPath, PRIVATE_FILE_MODE).catch(() => undefined);
+  await writeBackupMetadata(backupPath, resolvedTarget, timestamp, isOriginal);
   await enforceBackupRetention(resolvedTarget);
 
   return backupPath;
@@ -283,6 +333,48 @@ export async function restoreFromBackupOrRemove(filePath: string, backupPath: st
   await removeFileIfExists(filePath);
 }
 
+const RENAME_RETRYABLE_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);
+const RENAME_RETRY_DELAYS_MS = [20, 50, 100];
+
+async function getExistingMode(filePath: string): Promise<number> {
+  try {
+    return (await fs.promises.stat(filePath)).mode & 0o777;
+  } catch {
+    return PRIVATE_FILE_MODE;
+  }
+}
+
+async function replaceFile(tempPath: string, filePath: string): Promise<void> {
+  let lastError: unknown;
+
+  // rename() replaces the destination atomically on POSIX and on Windows (Node uses MoveFileEx with replace).
+  for (let attempt = 0; attempt <= RENAME_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      await fs.promises.rename(tempPath, filePath);
+      return;
+    } catch (error) {
+      lastError = error;
+      const code = (error as NodeJS.ErrnoException).code;
+      const delay = RENAME_RETRY_DELAYS_MS[attempt];
+      if (!RENAME_RETRYABLE_CODES.has(code ?? "") || delay === undefined) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  // Last resort on Windows when the destination is held open by another process (for example the client
+  // itself): remove it and rename again. Not atomic, but only reached after rename() kept failing.
+  if (process.platform === "win32" && fs.existsSync(filePath)) {
+    await fs.promises.rm(filePath, { force: true });
+    await fs.promises.rename(tempPath, filePath);
+    return;
+  }
+
+  throw lastError;
+}
+
 export async function writeFileAtomic(filePath: string, content: string | Uint8Array): Promise<void> {
   await ensureParentDir(filePath);
 
@@ -291,22 +383,15 @@ export async function writeFileAtomic(filePath: string, content: string | Uint8A
     `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
   );
 
-  await fs.promises.writeFile(tempPath, content);
+  // Keep the destination's permissions (or private by default) instead of widening them to the umask default.
+  await fs.promises.writeFile(tempPath, content, { mode: await getExistingMode(filePath) });
 
   try {
-    if (process.platform === "win32" && fs.existsSync(filePath)) {
-      await fs.promises.rm(filePath, { force: true });
-    }
-
-    await fs.promises.rename(tempPath, filePath);
+    await replaceFile(tempPath, filePath);
   } catch (error) {
     await fs.promises.rm(tempPath, { force: true }).catch(() => undefined);
     throw error;
   }
-}
-
-export function getBackupTarget(client: SupportedClient): BackupTarget {
-  return getGlobalBackupTarget(client);
 }
 
 export function getAllBackupTargets(): BackupTarget[] {
@@ -337,9 +422,46 @@ export async function getLatestBackup(query: { client: SupportedClient; scope?: 
   return backups[0] ?? null;
 }
 
+function getExpectedTargetPath(entry: BackupEntry): string | null {
+  if (entry.scope === "global") {
+    const globalPathResolvers: Record<SupportedClient, () => string> = {
+      codex: getCodexConfigPath,
+      claude: getClaudeConfigPath,
+      gemini: getGeminiConfigPath,
+      "copilot-cli": getCopilotCliConfigPath,
+      "copilot-vscode": getCopilotVsCodeConfigPath,
+    };
+
+    return globalPathResolvers[entry.client]();
+  }
+
+  if (entry.repoPath === undefined) {
+    return null;
+  }
+
+  const repoPathResolvers: Record<SupportedClient, (repoPath: string) => string> = {
+    codex: getRepoCodexConfigPath,
+    claude: getRepoClaudeConfigPath,
+    gemini: getRepoGeminiConfigPath,
+    "copilot-cli": getRepoCopilotCliConfigPath,
+    "copilot-vscode": getRepoCopilotVsCodeConfigPath,
+  };
+
+  return repoPathResolvers[entry.client](entry.repoPath);
+}
+
+function isInsideDir(parentDir: string, candidatePath: string): boolean {
+  const relative = path.relative(path.resolve(parentDir), path.resolve(candidatePath));
+  return relative.length > 0 && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
 export async function resolveBackupSelection(selection: string): Promise<BackupEntry> {
   const backupsDir = getBackupsDir();
   const candidatePath = path.isAbsolute(selection) ? selection : path.join(backupsDir, selection);
+
+  if (!isInsideDir(backupsDir, candidatePath)) {
+    throw new Error(`Backup must be inside ${backupsDir}: ${selection}`);
+  }
 
   if (!fs.existsSync(candidatePath)) {
     throw new Error(`Backup not found: ${selection}`);
@@ -348,6 +470,11 @@ export async function resolveBackupSelection(selection: string): Promise<BackupE
   const parsedEntry = await getBackupEntry(candidatePath);
   if (!parsedEntry) {
     throw new Error(`Unsupported backup file: ${candidatePath}`);
+  }
+
+  const expectedTargetPath = getExpectedTargetPath(parsedEntry);
+  if (expectedTargetPath === null || normalizeRepoPath(expectedTargetPath) !== normalizeRepoPath(parsedEntry.filePath)) {
+    throw new Error(`Backup ${parsedEntry.backupFileName} targets an unexpected path: ${parsedEntry.filePath}`);
   }
 
   return {
