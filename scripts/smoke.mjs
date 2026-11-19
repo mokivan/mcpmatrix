@@ -11,6 +11,10 @@ function getVsCodeMcpPath(homeDir) {
     return path.join(homeDir, "AppData", "Roaming", "Code", "User", "mcp.json");
   }
 
+  if (process.platform === "darwin") {
+    return path.join(homeDir, "Library", "Application Support", "Code", "User", "mcp.json");
+  }
+
   return path.join(homeDir, ".config", "Code", "User", "mcp.json");
 }
 
