@@ -1,6 +1,93 @@
 # mcpmatrix
 
-Define MCP servers once and generate client configs from a single canonical configuration.
+**One config for every MCP client. Per-project servers without copy-pasting JSON.**
+
+[![npm](https://img.shields.io/npm/v/@mokivan/mcpmatrix)](https://www.npmjs.com/package/@mokivan/mcpmatrix)
+[![CI](https://github.com/mokivan/mcpmatrix/actions/workflows/ci.yml/badge.svg)](https://github.com/mokivan/mcpmatrix/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/@mokivan/mcpmatrix)](LICENSE)
+[![node](https://img.shields.io/node/v/@mokivan/mcpmatrix)](https://nodejs.org)
+
+## The problem
+
+Codex uses TOML. Claude Code, Gemini CLI, and GitHub Copilot each use their own JSON shape, in different files, at different scopes. Add a few MCP servers, want some of them only in certain projects, and you end up hand-editing five files that drift apart.
+
+mcpmatrix keeps **one** YAML file and generates all of them.
+
+## Before / after
+
+You write this once, in `~/.mcpmatrix/config.yml`:
+
+```yaml
+servers:
+  github:
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_TOKEN: ${env:GITHUB_TOKEN}
+  medusa:
+    transport: remote
+    protocol: http
+    url: https://docs.medusajs.com/mcp
+
+scopes:
+  global:
+    enable: [github]
+  repos:
+    "/home/you/dev/store":
+      enable: [medusa]
+```
+
+`mcpmatrix apply` then writes the right format to the right place for each client:
+
+| Client | Global | Repo-scoped |
+|--------|--------|-------------|
+| Codex CLI | `~/.codex/config.toml` | `<repo>/.codex/config.toml` |
+| Claude Code | `~/.claude.json` | `<repo>/.mcp.json` |
+| Gemini CLI | `~/.gemini/settings.json` | `<repo>/.gemini/settings.json` |
+| Copilot CLI | `~/.copilot/mcp-config.json` | `<repo>/.github/mcp.json` |
+| Copilot VS Code | user profile `mcp.json` | `<repo>/.vscode/mcp.json` |
+
+![Recording: the YAML config, mcpmatrix plan, mcpmatrix apply, and the resulting ~/.claude.json](https://raw.githubusercontent.com/mokivan/mcpmatrix/master/docs/assets/demo.gif)
+
+*Real output from a throwaway home directory; paths are shown as `~`. Note that `my-notes`, a server added by hand, is kept, and `${env:GITHUB_TOKEN}` becomes `${GITHUB_TOKEN}` for Claude Code.*
+
+## Why mcpmatrix
+
+- **Scopes that stack:** `global → tags → repo`. Enable a server everywhere, for a stack (tag), or for one repository.
+- **Safe writes:** every write is backed up and `apply` is transactional across all selected clients. A failure restores the previous state. `mcpmatrix rollback` restores backups on demand.
+- **Scoped writes:** only the MCP section of each client file is rewritten (`mcpServers` / `servers`, or a managed block in Codex's TOML). Everything else is preserved, including servers you added by hand: mcpmatrix remembers the names it wrote (in `~/.mcpmatrix/state.json`) and only updates or removes those.
+- **Look before you write:** `mcpmatrix plan` shows exactly which files change; `mcpmatrix doctor` checks commands, env vars, and per-client compatibility.
+- **Start from what you have:** `mcpmatrix import` builds the YAML from your existing client configs.
+
+## How it compares
+
+Several tools sync MCP configs across AI clients. Going by their READMEs as of November 2026:
+
+- [`add-mcp`](https://github.com/neondatabase/add-mcp) installs a server into many agents with one command (project or global). It is imperative: there is no central file describing what should be enabled where.
+- [`mcpick`](https://github.com/spences10/mcpick) manages servers interactively with profiles, audits, and backups.
+- [`agents`](https://github.com/amtiYo/agents) keeps one `.agents` source per project and syncs MCP servers, skills, and instructions from it.
+- [`mcpm`](https://github.com/pathintegral-institute/mcpm.sh) is a package manager and registry with profiles and a router.
+
+mcpmatrix is for the case where you want **one declarative file for your whole machine**: servers enabled globally, per stack (tags), or per repository, applied to every client in its own format, with `plan` before and rollback after. If you only need to add a server to a few clients, each client's own `mcp add` or `add-mcp` is simpler.
+
+## What it does not do
+
+- It does not install MCP servers or run them.
+- It does not store secrets: reference environment variables with `${env:VAR_NAME}`.
+- It is a CLI. Importing its internals as a library is unsupported.
+
+## Try it without installing
+
+```bash
+npx @mokivan/mcpmatrix import   # build the YAML from your existing client configs
+npx @mokivan/mcpmatrix plan     # preview what would change
+npx @mokivan/mcpmatrix apply    # write the client configs (with backups)
+```
+
+Contributing and the spec-driven workflow: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Supported clients
 
 This version supports:
 
@@ -72,7 +159,7 @@ scopes:
         - medusa
 
   repos:
-    "/Users/ivan/dev/store":
+    "/home/you/dev/store":
       tags: ["ecommerce"]
       enable: []
 ```
@@ -216,8 +303,10 @@ Write behavior:
 - GitHub Copilot CLI updates only the `mcpServers` section inside `mcp-config.json` and `.github/mcp.json`, writing `tools: ["*"]`
 - GitHub Copilot VS Code updates only the `servers` section inside `mcp.json`
 - stdio and supported remote transports are rendered per client format
-- `apply` fails before writing if any active server cannot be represented by one of the selected clients
-- existing content outside those managed areas is preserved
+- with `--clients all` (default) or `auto`, a server that a client cannot represent is skipped for that client with a warning, and the rest is still written
+- with an explicit `--clients` list, a server that a listed client cannot represent makes `apply` fail before writing
+- existing content outside those managed areas is preserved, including servers added by hand; only names recorded in `~/.mcpmatrix/state.json` are replaced or removed
+- Codex fails with a clear error if a hand-written `[mcp_servers.<name>]` table outside the managed block has the same name as a managed server
 - existing files are backed up before overwrite
 - `apply` is transactional across all selected targets: either all global and repo-scoped files are updated or the previous state is restored
 
@@ -226,7 +315,8 @@ Backup files:
 - stored in `~/.mcpmatrix/backups/`
 - filenames are versioned by client and scope, for example `codex-global-YYYY-MM-DD-HH-MM.toml`
 - each backup stores metadata for the exact live target path
-- latest 3 backups are retained per exact target file
+- the latest 3 backups are retained per exact target file, plus the original one (the first backup ever taken of that file), which is never rotated out
+- backup files and the backups directory are private to your user (`0600` / `0700` on POSIX)
 
 Rollback behavior:
 
@@ -262,7 +352,7 @@ Behavior:
 - without flags, restores the latest global backup for every supported client
 - with `--client`, restores only the latest backup for that client in the selected scope
 - with `--repo`, restores the latest repo-scoped backups for that repository
-- with `--backup`, restores a specific backup file by base name from `~/.mcpmatrix/backups/` or by absolute path
+- with `--backup`, restores a specific backup file by base name from `~/.mcpmatrix/backups/` (an absolute path is accepted only if it points inside that directory, and the backup's recorded target must be the expected client config path)
 - when `--backup` and `--client` are both provided, the backup must belong to that client
 - when `--backup` and `--repo` are both provided, the backup must belong to that repo and be repo-scoped
 
@@ -357,6 +447,20 @@ Rules:
 - interpolation may appear in any string field
 - repo matching uses normalized absolute paths across Windows, Linux, and macOS
 
+## Environment variables
+
+Write references once as `${env:VAR_NAME}`. mcpmatrix translates them for each client when it writes the config, and refuses to write a reference a client cannot express (it never writes the literal `${env:...}` text):
+
+| Client | Result |
+|--------|--------|
+| Claude Code | `${VAR_NAME}` in command, args, env, url, and headers |
+| Gemini CLI | `${VAR_NAME}` in `env` values only |
+| Codex CLI | `env_vars = ["VAR_NAME"]` when the entry is `VAR_NAME: ${env:VAR_NAME}` (same name only) |
+| Copilot VS Code | `${env:VAR_NAME}` unchanged |
+| Copilot CLI | not supported: its docs do not describe variable expansion, so `plan` and `apply` report an error. Use a literal value or choose clients with `--clients` |
+
+`mcpmatrix plan` and `mcpmatrix doctor` show which clients can represent each server. For remote servers, `auth: bearer` is written to Claude Code as an `Authorization` header.
+
 ## Development
 
 Install dependencies:
@@ -385,11 +489,11 @@ npm run pack:check
 
 Contributor guide:
 
-- adding a new supported client: [`docs/adding-supported-client.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/adding-supported-client.md)
+- adding a new supported client: [`docs/adding-supported-client.md`](docs/adding-supported-client.md)
 
 ## Release
 
-The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions, either after merges to `master` or from a manual run of the `Release` workflow. The workflow is guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](/c:/Users/ivan_/repos/mcpmatrix/docs/releasing.md).
+The public scoped package `@mokivan/mcpmatrix` is published from GitHub Actions, either after merges to `master` or from a manual run of the `Release` workflow. The workflow is guarded by version and registry checks. Release workflow details live in [`docs/releasing.md`](docs/releasing.md).
 
 ## Compatibility
 
@@ -427,8 +531,8 @@ Minimum README updates for that case:
 
 Implementation follows this order:
 
-1. roadmap documents in [`docs/`](/c:/Users/ivan_/repos/mcpmatrix/docs)
-2. canonical specifications in [`docs/specs/`](/c:/Users/ivan_/repos/mcpmatrix/docs/specs)
-3. code in [`src/`](/c:/Users/ivan_/repos/mcpmatrix/src)
+1. roadmap documents in [`docs/`](docs)
+2. canonical specifications in [`docs/specs/`](docs/specs)
+3. code in [`src/`](src)
 
 Canonical specs are the files prefixed with `spec-`.

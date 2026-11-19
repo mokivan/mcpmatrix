@@ -90,11 +90,11 @@ describe("createBackupIfExists", () => {
     expect(path.basename(copilotVsCodeBackup ?? "")).toMatch(/^copilot-vscode-global-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d+)?\.json$/);
   });
 
-  it("retains only the latest three backups per target stem", async () => {
+  it("retains the latest three backups per target stem plus the original one", async () => {
     await createTempHome();
     const configPath = await createTempFile("config.toml", "model = \"gpt-5\"\n");
 
-    for (let index = 0; index < 4; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       await fs.promises.writeFile(configPath, `model = "gpt-${index}"\n`, "utf8");
       await createBackupIfExists(configPath);
     }
@@ -102,7 +102,7 @@ describe("createBackupIfExists", () => {
     const backups = (await fs.promises.readdir(getBackupsDir())).filter(
       (entry) => entry.startsWith("codex-global-") && !entry.endsWith(".meta.json"),
     );
-    expect(backups).toHaveLength(3);
+    expect(backups).toHaveLength(4);
   });
 
   it("lists backups grouped by client metadata and resolves the latest one", async () => {
@@ -122,14 +122,77 @@ describe("createBackupIfExists", () => {
   });
 
   it("resolves a backup by file name inside the backups directory", async () => {
-    await createTempHome();
-    const configPath = await createTempFile("config.toml", "model = \"gpt-5\"\n");
+    const homeDir = await createTempHome();
+    const configPath = path.join(homeDir, ".codex", "config.toml");
+    await fs.promises.mkdir(path.dirname(configPath), { recursive: true });
+    await fs.promises.writeFile(configPath, "model = \"gpt-5\"\n", "utf8");
     const backupPath = await createBackupIfExists(configPath);
 
     const resolved = await resolveBackupSelection(path.basename(backupPath ?? ""));
 
     expect(resolved.client).toBe("codex");
     expect(resolved.backupPath).toBe(backupPath);
+  });
+
+  it("never rotates out the original backup", async () => {
+    const homeDir = await createTempHome();
+    const configPath = path.join(homeDir, ".codex", "config.toml");
+    await fs.promises.mkdir(path.dirname(configPath), { recursive: true });
+
+    for (let version = 0; version < 6; version += 1) {
+      await fs.promises.writeFile(configPath, `version = ${version}\n`, "utf8");
+      await createBackupIfExists(configPath);
+    }
+
+    const backups = await listBackups({ client: "codex", scope: "global" });
+    const contents = await Promise.all(backups.map((entry) => fs.promises.readFile(entry.backupPath, "utf8")));
+
+    expect(backups).toHaveLength(4);
+    expect(contents).toContain("version = 0\n");
+    expect(contents).toContain("version = 5\n");
+  });
+
+  it("rejects backup selections outside the backups directory", async () => {
+    const homeDir = await createTempHome();
+    const outsidePath = path.join(homeDir, "outside.toml");
+    await fs.promises.writeFile(outsidePath, "x = 1\n", "utf8");
+
+    await expect(resolveBackupSelection(outsidePath)).rejects.toThrow("Backup must be inside");
+    await expect(resolveBackupSelection(path.join("..", "outside.toml"))).rejects.toThrow("Backup must be inside");
+  });
+
+  it("rejects backups whose metadata points at an unexpected target path", async () => {
+    const homeDir = await createTempHome();
+    const configPath = path.join(homeDir, ".codex", "config.toml");
+    await fs.promises.mkdir(path.dirname(configPath), { recursive: true });
+    await fs.promises.writeFile(configPath, "model = \"gpt-5\"\n", "utf8");
+    const backupPath = (await createBackupIfExists(configPath)) ?? "";
+
+    const metaPath = `${backupPath}.meta.json`;
+    const metadata = JSON.parse(await fs.promises.readFile(metaPath, "utf8")) as { filePath: string };
+    metadata.filePath = path.join(homeDir, "somewhere", "else.json");
+    await fs.promises.writeFile(metaPath, JSON.stringify(metadata), "utf8");
+
+    await expect(resolveBackupSelection(path.basename(backupPath))).rejects.toThrow("unexpected path");
+  });
+
+  it.skipIf(process.platform === "win32")("keeps the destination permissions when replacing a file", async () => {
+    const configPath = await createTempFile("config.toml", "a = 1\n");
+    await fs.promises.chmod(configPath, 0o600);
+
+    await writeFileAtomic(configPath, "a = 2\n");
+
+    expect(fs.statSync(configPath).mode & 0o777).toBe(0o600);
+  });
+
+  it("creates new files and replaces existing ones", async () => {
+    const configPath = await createTempFile("config.toml", "a = 1\n");
+    await fs.promises.rm(configPath);
+
+    await writeFileAtomic(configPath, "a = 2\n");
+    await writeFileAtomic(configPath, "a = 3\n");
+
+    expect(fs.readFileSync(configPath, "utf8")).toBe("a = 3\n");
   });
 
   it("filters repo-scoped backups by repo path", async () => {

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.1.0
+
+Correctness and safety release: environment variables, hand-added servers, backups, and docs.
+
+Included in `2.1.0`:
+
+- `${env:VAR}` references are now translated per client instead of being written literally: Claude Code `${VAR}`, Gemini CLI `${VAR}` in `env`, Codex `env_vars` for same-name variables, VS Code unchanged; references a client cannot express are reported instead of written
+- `apply` with `--clients all` (default) or `auto` now skips servers a client cannot represent, with a warning, and writes the rest; an explicit `--clients` list still fails before writing
+- servers added by hand to client config files are preserved: mcpmatrix records the names it wrote in `~/.mcpmatrix/state.json` and only replaces or removes those; Codex reports a clear error on a same-name table outside its managed block
+- Claude Code output no longer includes the undocumented `auth` field: `bearer` auth is written as an `Authorization` header and `oauth` uses Claude's documented `oauth` keys
+- config writes replace the target atomically (no delete-then-rename window on Windows) and keep the destination's file permissions; backups and their directory are private
+- `rollback --backup` only accepts backups inside `~/.mcpmatrix/backups/` and rejects backups whose recorded target is not the expected client config path
+- the first backup of a target is kept as the original and never rotated out; backups taken within the same minute are now ordered correctly, so the latest backup is really the latest
+- Codex `env` keys and control characters are escaped so the generated TOML is always valid
+- `toml` upgraded from 4.x to 5.0.1 to resolve published advisories in the TOML parser used by `mcpmatrix import`
+- removed unused code, added issue templates and a security policy
+- README rewritten with the problem statement, a before/after example, a client output table, an environment variables section, and `npx` usage; links to other docs fixed
+
+Compatibility notes:
+
+- Copilot CLI does not document environment variable expansion, so servers using `${env:VAR}` are skipped for it (with a warning) unless it is named explicitly
+- apply on an existing 2.0.x setup keeps servers it wrote before as unmanaged until you remove them by hand; names are tracked from the first 2.1.0 apply on
+- no config schema changes
+
 ## 2.0.4
 
 Scoped MCP persistence fix for global and repo-level client configs.

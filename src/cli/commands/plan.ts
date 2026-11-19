@@ -6,8 +6,10 @@ import { readGeminiConfig, renderGeminiConfig } from "../../adapters/gemini/writ
 import { SUPPORTED_CLIENTS } from "../../core/client-selection";
 import { loadConfig } from "../../core/config-loader";
 import { detectRepoPath } from "../../core/repo-detector";
+import { getManagedNames, loadManagedState } from "../../core/managed-state";
 import { resolveServers } from "../../core/resolver";
-import { describeServer, getClientCompatibility } from "../../core/server-config";
+import { describeServer, getClientCompatibility, partitionServersForClient } from "../../core/server-config";
+import type { ResolvedServer, SupportedClient } from "../../types";
 import { logInfo, logWarn } from "../../utils/logger";
 import {
   getClaudeConfigPath,
@@ -32,6 +34,10 @@ function formatJsonContent(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
+function supportedFor(servers: ResolvedServer[], client: SupportedClient): ResolvedServer[] {
+  return partitionServersForClient(servers, client).supported;
+}
+
 export async function runPlanCommand(options?: { repo?: string }): Promise<void> {
   const config = await loadConfig();
   const repoDetection = options?.repo
@@ -43,26 +49,27 @@ export async function runPlanCommand(options?: { repo?: string }): Promise<void>
     logWarn(warning);
   }
 
+  const state = await loadManagedState();
   const codexPath = getCodexConfigPath();
   const claudePath = getClaudeConfigPath();
   const geminiPath = getGeminiConfigPath();
   const copilotCliPath = getCopilotCliConfigPath();
   const copilotVsCodePath = getCopilotVsCodeConfigPath();
   const codexExisting = await readCodexConfig(codexPath);
-  const codexNext = renderCodexManagedSection(resolution.globalServers);
+  const codexNext = renderCodexManagedSection(supportedFor(resolution.globalServers, "codex"));
   const claudeExistingConfig = await readClaudeConfig(claudePath);
   const claudeExisting = JSON.stringify(claudeExistingConfig, null, 2);
-  const claudeNext = formatJsonContent(renderClaudeConfig(claudeExistingConfig, resolution.globalServers));
+  const claudeNext = formatJsonContent(renderClaudeConfig(claudeExistingConfig, supportedFor(resolution.globalServers, "claude"), getManagedNames(state, "claude", claudePath)));
   const geminiExistingConfig = await readGeminiConfig(geminiPath);
   const geminiExisting = JSON.stringify(geminiExistingConfig, null, 2);
-  const geminiNext = formatJsonContent(renderGeminiConfig(geminiExistingConfig, resolution.globalServers));
+  const geminiNext = formatJsonContent(renderGeminiConfig(geminiExistingConfig, supportedFor(resolution.globalServers, "gemini"), getManagedNames(state, "gemini", geminiPath)));
   const copilotCliExistingConfig = await readCopilotCliConfig(copilotCliPath);
   const copilotCliExisting = JSON.stringify(copilotCliExistingConfig, null, 2);
-  const copilotCliNext = formatJsonContent(renderCopilotCliConfig(copilotCliExistingConfig, resolution.globalServers));
+  const copilotCliNext = formatJsonContent(renderCopilotCliConfig(copilotCliExistingConfig, supportedFor(resolution.globalServers, "copilot-cli"), getManagedNames(state, "copilot-cli", copilotCliPath)));
   const copilotVsCodeExistingConfig = await readCopilotVsCodeConfig(copilotVsCodePath);
   const copilotVsCodeExisting = JSON.stringify(copilotVsCodeExistingConfig, null, 2);
   const copilotVsCodeNext = formatJsonContent(
-    renderCopilotVsCodeConfig(copilotVsCodeExistingConfig, resolution.globalServers),
+    renderCopilotVsCodeConfig(copilotVsCodeExistingConfig, supportedFor(resolution.globalServers, "copilot-vscode"), getManagedNames(state, "copilot-vscode", copilotVsCodePath)),
   );
 
   logInfo(`Repo: ${resolution.repoPath}`);
@@ -118,22 +125,22 @@ export async function runPlanCommand(options?: { repo?: string }): Promise<void>
     const repoCopilotCliPath = getRepoCopilotCliConfigPath(resolution.repoPath);
     const repoCopilotVsCodePath = getRepoCopilotVsCodeConfigPath(resolution.repoPath);
     const repoCodexExisting = await readCodexConfig(repoCodexPath);
-    const repoCodexNext = renderCodexManagedSection(resolution.repoScopedServers);
+    const repoCodexNext = renderCodexManagedSection(supportedFor(resolution.repoScopedServers, "codex"));
     const repoClaudeExistingConfig = await readClaudeConfig(repoClaudePath);
     const repoClaudeExisting = JSON.stringify(repoClaudeExistingConfig, null, 2);
-    const repoClaudeNext = formatJsonContent(renderClaudeConfig(repoClaudeExistingConfig, resolution.repoScopedServers));
+    const repoClaudeNext = formatJsonContent(renderClaudeConfig(repoClaudeExistingConfig, supportedFor(resolution.repoScopedServers, "claude"), getManagedNames(state, "claude", repoClaudePath)));
     const repoGeminiExistingConfig = await readGeminiConfig(repoGeminiPath);
     const repoGeminiExisting = JSON.stringify(repoGeminiExistingConfig, null, 2);
-    const repoGeminiNext = formatJsonContent(renderGeminiConfig(repoGeminiExistingConfig, resolution.repoScopedServers));
+    const repoGeminiNext = formatJsonContent(renderGeminiConfig(repoGeminiExistingConfig, supportedFor(resolution.repoScopedServers, "gemini"), getManagedNames(state, "gemini", repoGeminiPath)));
     const repoCopilotCliExistingConfig = await readCopilotCliConfig(repoCopilotCliPath);
     const repoCopilotCliExisting = JSON.stringify(repoCopilotCliExistingConfig, null, 2);
     const repoCopilotCliNext = formatJsonContent(
-      renderCopilotCliConfig(repoCopilotCliExistingConfig, resolution.repoScopedServers),
+      renderCopilotCliConfig(repoCopilotCliExistingConfig, supportedFor(resolution.repoScopedServers, "copilot-cli"), getManagedNames(state, "copilot-cli", repoCopilotCliPath)),
     );
     const repoCopilotVsCodeExistingConfig = await readCopilotVsCodeConfig(repoCopilotVsCodePath);
     const repoCopilotVsCodeExisting = JSON.stringify(repoCopilotVsCodeExistingConfig, null, 2);
     const repoCopilotVsCodeNext = formatJsonContent(
-      renderCopilotVsCodeConfig(repoCopilotVsCodeExistingConfig, resolution.repoScopedServers),
+      renderCopilotVsCodeConfig(repoCopilotVsCodeExistingConfig, supportedFor(resolution.repoScopedServers, "copilot-vscode"), getManagedNames(state, "copilot-vscode", repoCopilotVsCodePath)),
     );
 
     logInfo(`- Repo Codex managed section lines: ${estimateLineDiff("", repoCodexNext)}`);

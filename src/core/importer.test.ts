@@ -414,6 +414,15 @@ args = ["-y", "@modelcontextprotocol/server-github"]
     await expect(importExistingConfigs()).rejects.toThrow("Conflicting definitions");
   });
 
+  it("fails with a clear error when the codex config.toml is malformed", async () => {
+    const homeDir = await createTempHome();
+
+    await fs.promises.mkdir(path.join(homeDir, ".codex"), { recursive: true });
+    await fs.promises.writeFile(path.join(homeDir, ".codex", "config.toml"), "[mcp_servers.broken\ncommand = ", "utf8");
+
+    await expect(importExistingConfigs()).rejects.toThrow("Invalid TOML in Codex config");
+  });
+
   it("refuses to overwrite an existing canonical config", async () => {
     const homeDir = await createTempHome();
     const configPath = path.join(homeDir, ".mcpmatrix", "config.yml");

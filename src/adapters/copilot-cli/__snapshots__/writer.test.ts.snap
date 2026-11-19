@@ -12,7 +12,7 @@ exports[`copilot-cli writer > renders the copilot cli config snapshot 1`] = `
         "@modelcontextprotocol/server-github"
       ],
       "env": {
-        "GITHUB_TOKEN": "\${env:GITHUB_TOKEN}"
+        "GITHUB_TOKEN": "literal-token"
       },
       "tools": [
         "*"
@@ -22,7 +22,7 @@ exports[`copilot-cli writer > renders the copilot cli config snapshot 1`] = `
       "type": "sse",
       "url": "https://mcp.context7.com/mcp",
       "headers": {
-        "CONTEXT7_API_KEY": "\${env:CONTEXT7_API_KEY}"
+        "CONTEXT7_API_KEY": "literal-key"
       },
       "tools": [
         "*"

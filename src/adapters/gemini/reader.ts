@@ -1,1 +1,0 @@
-export { readGeminiConfig } from "./writer";

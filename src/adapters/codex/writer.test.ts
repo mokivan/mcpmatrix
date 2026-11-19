@@ -1,3 +1,4 @@
+import TOML from "toml";
 import { describe, expect, it } from "vitest";
 import { mergeCodexConfig, renderCodexManagedSection } from "./writer";
 import { ResolvedServer } from "../../types";
@@ -57,5 +58,32 @@ describe("codex writer", () => {
         },
       ]),
     ).toThrow("Codex cannot represent");
+  });
+
+  it("keeps hand-written servers but refuses a same-name table outside the managed block", () => {
+    const withOther = mergeCodexConfig('[mcp_servers.other]\ncommand = "x"\n', servers);
+    expect(() => TOML.parse(withOther)).not.toThrow();
+    expect(withOther).toContain("[mcp_servers.other]");
+
+    expect(() => mergeCodexConfig('[mcp_servers.github]\ncommand = "x"\n', servers)).toThrow(
+      "outside the mcpmatrix managed block",
+    );
+  });
+
+  it("renders valid TOML for unusual env keys and control characters", () => {
+    const section = renderCodexManagedSection([
+      {
+        name: "odd",
+        transport: "stdio",
+        command: "node",
+        args: ["line1\nline2"],
+        env: { "A B": "x", 'a"b': "y", "A.B": "z", PLAIN_KEY: "tab\there" },
+      },
+    ]);
+
+    const parsed = TOML.parse(section) as { mcp_servers: { odd: { env: Record<string, string>; args: string[] } } };
+
+    expect(parsed.mcp_servers.odd.env).toEqual({ "A B": "x", 'a"b': "y", "A.B": "z", PLAIN_KEY: "tab\there" });
+    expect(parsed.mcp_servers.odd.args).toEqual(["line1\nline2"]);
   });
 });

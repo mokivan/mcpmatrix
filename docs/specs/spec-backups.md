@@ -27,7 +27,7 @@ When multiple backups are created in the same minute for the same target, a nume
 
 Retention:
 
-- keep the latest 3 backups per exact target file
+- keep the latest 3 backups per exact target file, plus the original backup (the first one taken for that target), which is never rotated out
 
 ## Listing Backups
 
@@ -63,7 +63,8 @@ Repo-scoped behavior:
 
 Explicit backup behavior:
 
-- `--backup` accepts either a backup file name from `~/.mcpmatrix/backups/` or an absolute path
+- `--backup` accepts either a backup file name from `~/.mcpmatrix/backups/` or an absolute path that resolves inside that directory
+- a backup whose recorded target path is not the expected client config path for its client and scope is rejected
 - if `--client` is also provided, the selected backup must belong to that client
 - if `--repo` is also provided, the selected backup must belong to that repository and be repo-scoped
 

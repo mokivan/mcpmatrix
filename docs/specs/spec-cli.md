@@ -33,6 +33,10 @@ Shows the resolved MCP server set and planned config updates.
 
 Writes resolved MCP config into supported client config files.
 
+- with `--clients all` (default) or `auto`, servers a client cannot represent are skipped for that client with a warning
+- with an explicit client list, an unrepresentable server is an error and nothing is written
+- servers added by hand to client files are preserved; mcpmatrix only replaces or removes the names it recorded in `~/.mcpmatrix/state.json`
+
 ### `mcpmatrix validate`
 
 Validates the canonical config structure and local command executability.

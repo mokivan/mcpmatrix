@@ -1,8 +1,8 @@
 import fs from "fs";
 import type { ResolvedServer } from "../../types";
-import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
 import { getCopilotCliConfigPath } from "../../utils/paths";
 import { readTextFile } from "../../utils/text";
+import { mergeManagedEntries } from "../../core/managed-state";
 import { getClientCompatibility } from "../../core/server-config";
 
 type CopilotCliStdioServer = {
@@ -68,22 +68,17 @@ export async function readCopilotCliConfig(filePath = getCopilotCliConfigPath())
   }
 }
 
-export function renderCopilotCliConfig(existingConfig: CopilotCliConfig, servers: ResolvedServer[]): CopilotCliConfig {
+export function renderCopilotCliConfig(
+  existingConfig: CopilotCliConfig,
+  servers: ResolvedServer[],
+  previouslyManaged: string[] = [],
+): CopilotCliConfig {
   return {
     ...existingConfig,
-    mcpServers: Object.fromEntries(servers.map((server) => [server.name, toCopilotCliServer(server)])),
+    mcpServers: mergeManagedEntries(
+      existingConfig.mcpServers,
+      Object.fromEntries(servers.map((server) => [server.name, toCopilotCliServer(server)])),
+      previouslyManaged,
+    ),
   };
-}
-
-export async function writeCopilotCliConfig(
-  servers: ResolvedServer[],
-  filePath = getCopilotCliConfigPath(),
-): Promise<string | null> {
-  const existingConfig = await readCopilotCliConfig(filePath);
-  const nextConfig = renderCopilotCliConfig(existingConfig, servers);
-
-  const backupPath = await createBackupIfExists(filePath);
-  await writeFileAtomic(filePath, `${JSON.stringify(nextConfig, null, 2)}\n`);
-
-  return backupPath;
 }

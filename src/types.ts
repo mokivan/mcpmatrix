@@ -81,6 +81,7 @@ export interface RepoDetectionResult {
 export type SupportedClient = "codex" | "claude" | "gemini" | "copilot-cli" | "copilot-vscode";
 
 export interface BackupEntry {
+  original?: boolean;
   client: SupportedClient;
   scope: ConfigScope;
   filePath: string;
@@ -108,8 +109,16 @@ export interface ApplyTargetResult {
   repoPath?: string;
 }
 
+export interface SkippedServerResult {
+  client: SupportedClient;
+  scope: ConfigScope;
+  serverName: string;
+  reason: string;
+}
+
 export interface ApplyResult {
   targets: ApplyTargetResult[];
+  skipped: SkippedServerResult[];
   rollbackPerformed: boolean;
 }
 

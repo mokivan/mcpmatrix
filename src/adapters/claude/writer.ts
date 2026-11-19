@@ -1,9 +1,30 @@
 import fs from "fs";
 import type { RemoteAuth, ResolvedServer } from "../../types";
-import { createBackupIfExists, writeFileAtomic } from "../../utils/backup";
+
+// Claude Code expands ${VAR}, not ${env:VAR}.
+function toClaudeValue(value: string): string {
+  return translateEnvReferences(value, (name) => `\${${name}}`);
+}
+
+function mapRecord(record: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, toClaudeValue(value)]));
+}
+
+function toClaudeOAuth(auth: RemoteAuth | undefined): ClaudeOAuth | undefined {
+  if (auth?.type !== "oauth") {
+    return undefined;
+  }
+
+  return {
+    ...(auth.clientId === undefined ? {} : { clientId: auth.clientId }),
+    ...(auth.callbackPort === undefined ? {} : { callbackPort: auth.callbackPort }),
+    ...(auth.metadataUrl === undefined ? {} : { authServerMetadataUrl: auth.metadataUrl }),
+  };
+}
 import { getClaudeConfigPath } from "../../utils/paths";
 import { readTextFile } from "../../utils/text";
-import { getClientCompatibility } from "../../core/server-config";
+import { mergeManagedEntries } from "../../core/managed-state";
+import { getClientCompatibility, translateEnvReferences } from "../../core/server-config";
 
 type ClaudeStdioServer = {
   type?: "stdio";
@@ -16,7 +37,13 @@ type ClaudeRemoteServer = {
   type: "http" | "sse";
   url: string;
   headers?: Record<string, string>;
-  auth?: RemoteAuth;
+  oauth?: ClaudeOAuth;
+};
+
+type ClaudeOAuth = {
+  clientId?: string;
+  callbackPort?: number;
+  authServerMetadataUrl?: string;
 };
 
 export type ClaudeConfig = Record<string, unknown> & {
@@ -36,20 +63,24 @@ function toClaudeServer(server: ResolvedServer): ClaudeStdioServer | ClaudeRemot
   if (server.transport === "stdio") {
     return {
       type: "stdio",
-      command: server.command,
-      args: server.args ?? [],
-      env: server.env ?? {},
+      command: toClaudeValue(server.command),
+      args: (server.args ?? []).map(toClaudeValue),
+      env: mapRecord(server.env ?? {}),
     };
   }
 
-  const headers = Object.keys(server.headers ?? {}).length > 0 ? server.headers : undefined;
-  const auth = server.auth?.type === "none" ? undefined : server.auth;
+  const headers = { ...mapRecord(server.headers ?? {}) };
+  if (server.auth?.type === "bearer" && !Object.keys(headers).some((name) => name.toLowerCase() === "authorization")) {
+    headers.Authorization = `Bearer ${toClaudeValue(server.auth.token)}`;
+  }
+
+  const oauth = toClaudeOAuth(server.auth);
 
   return {
     type: server.protocol === "sse" ? "sse" : "http",
-    url: server.url,
-    ...(headers === undefined ? {} : { headers }),
-    ...(auth === undefined ? {} : { auth }),
+    url: toClaudeValue(server.url),
+    ...(Object.keys(headers).length === 0 ? {} : { headers }),
+    ...(oauth === undefined ? {} : { oauth }),
   };
 }
 
@@ -68,19 +99,17 @@ export async function readClaudeConfig(filePath = getClaudeConfigPath()): Promis
   }
 }
 
-export function renderClaudeConfig(existingConfig: ClaudeConfig, servers: ResolvedServer[]): ClaudeConfig {
+export function renderClaudeConfig(
+  existingConfig: ClaudeConfig,
+  servers: ResolvedServer[],
+  previouslyManaged: string[] = [],
+): ClaudeConfig {
   return {
     ...existingConfig,
-    mcpServers: Object.fromEntries(servers.map((server) => [server.name, toClaudeServer(server)])),
+    mcpServers: mergeManagedEntries(
+      existingConfig.mcpServers,
+      Object.fromEntries(servers.map((server) => [server.name, toClaudeServer(server)])),
+      previouslyManaged,
+    ),
   };
-}
-
-export async function writeClaudeConfig(servers: ResolvedServer[], filePath = getClaudeConfigPath()): Promise<string | null> {
-  const existingConfig = await readClaudeConfig(filePath);
-  const nextConfig = renderClaudeConfig(existingConfig, servers);
-
-  const backupPath = await createBackupIfExists(filePath);
-  await writeFileAtomic(filePath, `${JSON.stringify(nextConfig, null, 2)}\n`);
-
-  return backupPath;
 }

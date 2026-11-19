@@ -37,6 +37,7 @@ describe("runApplyCommand", () => {
     vi.clearAllMocks();
     mocks.applyResolvedServers.mockResolvedValue({
       rollbackPerformed: false,
+      skipped: [],
       targets: [
         {
           client: "codex",

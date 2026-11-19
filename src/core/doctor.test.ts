@@ -79,7 +79,7 @@ scopes:
     expect(report.serverChecks).toHaveLength(1);
     expect(report.serverChecks[0]?.missingEnvVars).toEqual(["GITHUB_TOKEN"]);
     expect(report.serverChecks[0]?.compatibility.codex.supported).toBe(false);
-    expect(report.serverChecks[0]?.compatibility["copilot-cli"].supported).toBe(true);
+    expect(report.serverChecks[0]?.compatibility["copilot-cli"].supported).toBe(false);
     expect(report.serverChecks[0]?.compatibility["copilot-vscode"].supported).toBe(true);
     expect(report.repoChecks.some((check) => check.repoPath === missingRepo && !check.accessible)).toBe(true);
     expect(report.suggestedTags).toHaveLength(1);
